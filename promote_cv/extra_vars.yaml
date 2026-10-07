@@ -1,0 +1,8 @@
+satellite_username: xxxxxx                                  # Ansible Vault
+satellite_password: xxxxxx                                  # Ansible Vault
+satellite_server_url: https://satellite.rh.local            # Static Variable
+satellite_validate_certs: false                             # Static Variable
+satellite_organization: Demo                                # Static Variable unless required (rarely required) and then input
+content_view_queries:                                       # Input
+  - composite = true
+lifecycle_environment: Dev                                  # Input

@@ -1,0 +1,82 @@
+- name: Ensure needs-restarting is installed
+  when: ansible_facts['distribution_major_version'] <= 7
+  ansible.builtin.package:
+    name: yum-utils
+    state: present
+
+- name: Run needs-restarting (RHEL <= 7)
+  when: ansible_facts['distribution_major_version'] <= 7
+  ansible.builtin.command: needs-restarting --reboothint
+  register: reboot_check
+  changed_when: false
+  failed_when: reboot_check.rc not in [0, 1]
+
+- name: Run needs-restarting (RHEL >= 8)
+  when: ansible_facts['distribution_major_version'] >= 8 and ansible_facts['distribution_major_version'] <= 10
+  ansible.builtin.command: dnf needs-restarting --reboothint --json
+  register: reboot_check
+  changed_when: false
+  failed_when: reboot_check.rc not in [0, 1]
+
+- name: Run needs-restarting (RHEL >= 11)
+  when: ansible_facts['distribution_major_version'] >= 11
+  ansible.builtin.command: dnf needs-restarting --json
+  register: reboot_check
+  changed_when: false
+  failed_when: reboot_check.rc not in [0, 1]
+
+- name: List services needing restart (RHEL <= 7)
+  when: ansible_facts['distribution_major_version'] <= 7
+  ansible.builtin.command: needs-restarting --services
+  register: service_check
+  changed_when: false
+  failed_when: service_check.rc not in [0, 1]
+
+- name: List services needing restart (RHEL >= 8)
+  when: ansible_facts['distribution_major_version'] >= 8 and ansible_facts['distribution_major_version'] <= 10
+  ansible.builtin.command: dnf needs-restarting --services
+  register: service_check
+  changed_when: false
+  failed_when: service_check.rc not in [0, 1]
+
+- name: List services needing restart (RHEL >= 11)
+  when: ansible_facts['distribution_major_version'] >= 11
+  ansible.builtin.command: dnf needs-restarting --services --json
+  register: service_check
+  changed_when: false
+  failed_when: service_check.rc not in [0, 1]
+
+- name: Determine whether a reboot is required
+  ansible.builtin.set_fact:
+    system_restart_required: >-
+      {{ ((reboot_check.stdout | from_json | selectattr('type', 'equalto', 'reboot') | map(attribute='reboot_required') | first | default(false) | bool)
+          if ansible_facts['distribution_major_version'] >= 11
+          else reboot_check.rc == 1) }}
+
+- name: Normalize services needing restart
+  ansible.builtin.set_fact:
+    services_to_restart: >-
+      {{ (service_check.stdout | from_json | selectattr('type', 'equalto', 'unit') | map(attribute='unit') | list)
+         if ansible_facts['distribution_major_version'] >= 11
+         else service_check.stdout_lines | reject('equalto', '') | list }}
+
+- name: Classify required restart action
+  ansible.builtin.set_fact:
+    restart_action: "{{ 'reboot' if system_restart_required else 'restart_services' if services_to_restart | length > 0 else 'none' }}"
+
+- name: Report required restart action
+  ansible.builtin.debug:
+    msg:
+      action: "{{ restart_action }}"
+      services: "{{ services_to_restart }}"
+
+- name: Restart Services
+  when: system_restart_required == false
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: restarted
+  loop: "{{ services_to_restart }}"
+
+- name: Reboot system
+  when: system_restart_required
+  ansible.builtin.reboot:

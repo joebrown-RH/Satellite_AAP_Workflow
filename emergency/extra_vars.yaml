@@ -1,0 +1,13 @@
+satellite_username: xxxxxx                                  # Ansible Vault
+satellite_password: xxxxxx                                  # Ansible Vault
+satellite_server_url: https://satellite.rh.local            # Static Variable
+satellite_validate_certs: false                             # Static Variable
+satellite_organization: Demo                                # Static Variable unless required (rarely required) and then input
+repositories:                                               # Input
+  - product: Red Hat Enterprise Linux for x86_64
+    query: name ~ "*AppStream RPMs*" or name ~ "*BaseOS RPMs*"
+emergency_content_view: cv_Emergency                        # Static Variable
+errata_ids:                                                 # Input
+  - RHSA-2026:73979
+composite_content_view_queries:                             # Input
+  - composite = true and name !=  "ccv_SAP"

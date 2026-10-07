@@ -1,0 +1,2 @@
+reboot: always     # Input (always = Always reboot. least = Restart only what's required (services or system))
+# reboot: least

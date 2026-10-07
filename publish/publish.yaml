@@ -1,0 +1,85 @@
+---
+- name: Publish Content Views
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Query for Content Views
+      redhat.satellite.content_view_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        search: "composite = false"
+      register: content_views
+
+    - name: Publish version of the Content Views
+      redhat.satellite.content_view_version:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        content_view: "{{ content_view.name }}"
+
+      poll: 0
+      loop: "{{ content_views.content_views | rejectattr('name', 'in', exclude_content_views) | rejectattr('name', 'eq', 'Default Organization View') }}"
+      loop_control:
+        loop_var: "content_view"
+      async: 3600
+      register: async_results
+
+    - name: Wait for Content Views to finish publishing
+      async_status:
+        jid: "{{ async_result_item.ansible_job_id }}"
+      loop: "{{ async_results.results }}"
+      loop_control:
+        loop_var: "async_result_item"
+      register: async_poll_results
+      until: async_poll_results.finished
+      retries: 3600
+
+    # Check if async tasks passed
+
+    - name: Query for Composite Content Views
+      redhat.satellite.content_view_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        search: "composite = true"
+      register: content_views
+
+    - name: Publish version of the Composite Content Views
+      redhat.satellite.content_view_version:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        content_view: "{{ content_view.name }}"
+
+      poll: 0
+      loop: "{{ content_views.content_views | rejectattr('name', 'in', exclude_content_views) | rejectattr('name', 'eq', 'Default Organization View') }}"
+      loop_control:
+        loop_var: "content_view"
+      async: 3600
+      register: async_results
+
+    - name: Wait for Composite Content Views to finish publishing
+      async_status:
+        jid: "{{ async_result_item.ansible_job_id }}"
+      loop: "{{ async_results.results }}"
+      loop_control:
+        loop_var: "async_result_item"
+      register: async_poll_results
+      until: async_poll_results.finished
+      retries: 3600
+
+    # Check if async tasks passed

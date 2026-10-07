@@ -1,0 +1,62 @@
+---
+- name: Promote Content Views
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Get Lifecycle Environment
+      redhat.satellite.lifecycle_environment:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        name: "{{ lifecycle_environment | default(omit) }}"
+      register: lifecycle_environment_info
+
+    - name: Store previous Lifecycle Environment
+      set_fact:
+        previous_lifecycle_environment: "{{ (lifecycle_environment_info.entity.lifecycle_environments | first).prior.name }}"
+
+    - name: Get Content Views
+      redhat.satellite.content_view_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        search: "{{ content_view_query }}"
+      register: content_views
+      loop: "{{ content_view_queries }}"
+      loop_control:
+        loop_var: "content_view_query"
+
+    - name: Promote Content View
+      redhat.satellite.content_view_version:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        current_lifecycle_environment: "{{ previous_lifecycle_environment }}"
+        lifecycle_environments:
+          - "{{ lifecycle_environment | default(omit) }}"
+        content_view: "{{ content_view.name }}"
+      loop: "{{ content_views.results | json_query('[].content_views[].{name: name}') }}"
+      loop_control:
+        loop_var: "content_view"
+      poll: 0
+      async: 3600
+      register: async_results
+
+    - name: Wait for Content Views to finish promoting
+      async_status:
+        jid: "{{ async_result_item.ansible_job_id }}"
+      loop: "{{ async_results.results }}"
+      loop_control:
+        loop_var: "async_result_item"
+      register: async_poll_results
+      until: async_poll_results.finished
+      retries: 3600

@@ -1,0 +1,50 @@
+---
+- name: Get Installable Errata
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Get Host Info
+      redhat.satellite.host_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        name: "{{ host | default(inventory_hostname) }}"
+      register: host_info
+
+    - name: Get Lifecycle Environment
+      when: lifecycle_prior | default(false) | bool
+      redhat.satellite.lifecycle_environment:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        name: "{{ lifecycle_environment | default(omit) }}"
+      register: lifecycle_environment_info
+
+    - name: Store previous Lifecycle Environment
+      when: lifecycle_prior | default(false) | bool
+      set_fact:
+        previous_lifecycle_environment: "{{ (lifecycle_environment_info.entity.lifecycle_environments | first).prior.name }}"
+
+    - name: Get Host Errata
+      redhat.satellite.host_errata_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        host: "{{ host | default(inventory_hostname) }}"
+        content_view: "{{ host_info.host.content_view.name }}"
+        lifecycle_environment: "{{ previous_lifecycle_environment | default(lifecycle_environment) | default(omit) }}"
+      register: host_errata_info
+
+    - name: Debug
+      debug:
+        var: host_errata_info.host_errata
