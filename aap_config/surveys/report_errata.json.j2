@@ -1,0 +1,28 @@
+{
+  "name": "Report Installable Errata",
+  "description": "Scope the errata report.",
+  "spec": [
+    {
+      "question_name": "Lifecycle environment",
+      "question_description": "The environment the report is relative to.",
+      "variable": "lifecycle_environment",
+      "type": "multiplechoice",
+      "choices": [
+{% for env in sat_lifecycle_environments %}
+        {{ env | to_json }}{{ "," if not loop.last }}
+{% endfor %}
+      ],
+      "default": {{ sat_lifecycle_environments | first | to_json }},
+      "required": true
+    },
+    {
+      "question_name": "Report against the prior environment",
+      "question_description": "Yes = show what is waiting to be installed from the step before the chosen environment (use this for the BEFORE report). No = report against the chosen environment itself (use this for the AFTER report, which should come back empty).",
+      "variable": "lifecycle_prior",
+      "type": "multiplechoice",
+      "choices": ["true", "false"],
+      "default": "true",
+      "required": true
+    }
+  ]
+}

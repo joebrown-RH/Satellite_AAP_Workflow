@@ -1,0 +1,19 @@
+{
+  "name": "Publish Content Views",
+  "description": "Choose which content views to leave untouched during this publish.",
+  "spec": [
+    {
+      "question_name": "Content views to exclude",
+      "question_description": "These content views will NOT get a new version. The emergency content view is excluded by default because it is published on its own schedule. A multiselect is used deliberately - AAP returns it as a list, which is what the playbook's reject filter needs.",
+      "variable": "exclude_content_views",
+      "type": "multiselect",
+      "choices": [
+{% for cv in [sat_emergency_content_view] + (sat_additional_excludable_content_views | default([])) %}
+        {{ cv | to_json }}{{ "," if not loop.last }}
+{% endfor %}
+      ],
+      "default": {{ sat_emergency_content_view | to_json }},
+      "required": false
+    }
+  ]
+}

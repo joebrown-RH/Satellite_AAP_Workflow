@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: satellite_restart_least
+  author: Satellite AAP Workflow
+  description: >-
+    Determine the minimum restart action required after patching a RHEL host -
+    reboot, restart specific services, or nothing - and perform it.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: EL
+      versions: ["7", "8", "9", "10"]
+  galaxy_tags:
+    - rhel
+    - patching
+    - satellite
+
+dependencies: []

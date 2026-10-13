@@ -1,0 +1,39 @@
+---
+# Sourcing clients from Satellite is what makes the HA patch-group pattern in
+# docs/satellite/patching.md work without maintaining a static inventory.
+#
+# With want_hostcollections enabled, Satellite host groups and host collections
+# arrive as AAP inventory groups, so pass 1/2/3 of an HA patch run becomes a
+# `limit` on the job template:
+#
+#   foreman_hostgroup_general_department1_app1_dev:&foreman_host_collection_patch_group_1
+#
+# The `satellite6` source reuses a Red Hat Satellite 6 credential rather than
+# the custom API credential type, because that is what the inventory plugin
+# expects. Customers therefore maintain two credentials holding the same
+# login - unavoidable, and noted in the README.
+#
+# The "Satellite - Inventory Source" credential it uses is defined in
+# credentials.yml alongside the others.
+sat_manage_inventory_source: true
+
+controller_inventory_sources:
+  - name: "{{ sat_prefix }}Satellite Hosts"
+    description: "All RHEL hosts registered to Satellite"
+    inventory: "{{ sat_prefix }}Clients"
+    organization: "{{ sat_aap_organization }}"
+    source: satellite6
+    credential: "{{ sat_prefix }}Inventory Source"
+    execution_environment: "{{ sat_ee_name }}"
+    overwrite: true
+    overwrite_vars: true
+    update_on_launch: true
+    update_cache_timeout: 600
+    source_vars:
+      group_prefix: "foreman_"
+      want_hostcollections: true
+      want_params: true
+      # Uncomment to scope this inventory to a subset of the estate instead of
+      # relying on `limit` at launch time:
+      # foreman_search: 'hostgroup_fullname ~ "General/*"'
+    state: "{{ 'present' if sat_manage_inventory_source else 'absent' }}"

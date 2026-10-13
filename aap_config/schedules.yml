@@ -1,0 +1,43 @@
+---
+# Optional. Off by default so importing this bundle never starts patching a
+# customer's estate on a timetable they did not choose.
+#
+# The cadence below implements the weekly/monthly split described in
+# docs/satellite/lifecycle_environment.md: publish once, then let each
+# lifecycle environment pick it up on its own schedule.
+sat_manage_schedules: false
+
+controller_schedules:
+  # Publish new content view versions every Saturday at 02:00.
+  - name: "{{ sat_prefix }}Weekly Publish"
+    description: "Publish new content view versions ahead of the Dev promotion"
+    unified_job_template: "{{ sat_prefix }}Publishing"
+    organization: "{{ sat_aap_organization }}"
+    rrule: "DTSTART;TZID=Etc/UTC:20260103T020000 RRULE:FREQ=WEEKLY;BYDAY=SA"
+    enabled: "{{ sat_manage_schedules }}"
+    state: "{{ 'present' if sat_manage_schedules else 'absent' }}"
+
+  # Dev patches the following Monday, then each environment a week later.
+  - name: "{{ sat_prefix }}Weekly Patch - Dev"
+    unified_job_template: "{{ sat_prefix }}Update Systems"
+    organization: "{{ sat_aap_organization }}"
+    rrule: "DTSTART;TZID=Etc/UTC:20260105T030000 RRULE:FREQ=WEEKLY;BYDAY=MO"
+    extra_data:
+      lifecycle_environment: Dev
+      reboot: least
+    enabled: "{{ sat_manage_schedules }}"
+    state: "{{ 'present' if sat_manage_schedules else 'absent' }}"
+
+  - name: "{{ sat_prefix }}Weekly Patch - Test"
+    unified_job_template: "{{ sat_prefix }}Update Systems"
+    organization: "{{ sat_aap_organization }}"
+    rrule: "DTSTART;TZID=Etc/UTC:20260107T030000 RRULE:FREQ=WEEKLY;BYDAY=WE"
+    extra_data:
+      lifecycle_environment: Test
+      reboot: least
+    enabled: "{{ sat_manage_schedules }}"
+    state: "{{ 'present' if sat_manage_schedules else 'absent' }}"
+
+# Prod is intentionally NOT scheduled. With sat_require_patch_approval on, a
+# scheduled Prod run would sit waiting on an approval nobody is watching for.
+# Launch it by hand, or schedule it once you have a duty rota.

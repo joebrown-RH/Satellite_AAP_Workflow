@@ -1,0 +1,76 @@
+---
+# Builds this entire bundle inside an AAP instance: credential type,
+# credentials, EE, project, inventories, job templates, surveys, workflows,
+# notifications, RBAC and (optionally) schedules.
+#
+# Run it from a workstation or from AAP itself. It is idempotent - re-run it
+# after editing aap_config/defaults.yml and the changes are applied in place.
+#
+#   export CONTROLLER_HOST=https://aap.example.com
+#   export CONTROLLER_USERNAME=admin
+#   export CONTROLLER_PASSWORD='...'
+#   export SATELLITE_USERNAME=admin
+#   export SATELLITE_PASSWORD='...'
+#   ansible-playbook playbooks/configure_aap.yml
+#
+# Add --check to preview without writing anything.
+- name: Configure AAP for the Satellite content lifecycle workflows
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Absolute, so the survey template lookups resolve no matter where the
+    # playbook is invoked from.
+    sat_config_dir: "{{ playbook_dir }}/../aap_config"
+
+    # AAP connection. infra.aap_configuration renamed these between major
+    # versions; setting both keeps the bundle working on 1.x and 2.x.
+    aap_hostname: "{{ lookup('env', 'CONTROLLER_HOST') }}"
+    aap_username: "{{ lookup('env', 'CONTROLLER_USERNAME') | default('admin', true) }}"
+    aap_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_validate_certs: "{{ lookup('env', 'CONTROLLER_VERIFY_SSL') | default('true', true) | bool }}"
+    controller_hostname: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username }}"
+    controller_password: "{{ aap_password }}"
+    controller_validate_certs: "{{ aap_validate_certs }}"
+
+  vars_files:
+    - ../aap_config/defaults.yml
+    - ../aap_config/organizations.yml
+    - ../aap_config/credential_types.yml
+    - ../aap_config/credentials.yml
+    - ../aap_config/execution_environments.yml
+    - ../aap_config/projects.yml
+    - ../aap_config/inventories.yml
+    - ../aap_config/inventory_sources.yml
+    - ../aap_config/notification_templates.yml
+    - ../aap_config/job_templates.yml
+    - ../aap_config/workflow_job_templates.yml
+    - ../aap_config/rbac.yml
+    - ../aap_config/schedules.yml
+
+  pre_tasks:
+    - name: Verify the AAP connection details are present
+      ansible.builtin.assert:
+        that:
+          - aap_hostname | length > 0
+          - aap_password | length > 0
+        fail_msg: >-
+          Set CONTROLLER_HOST and CONTROLLER_PASSWORD (and optionally
+          CONTROLLER_USERNAME) before running this playbook.
+
+    - name: Warn if the Satellite password was not supplied
+      ansible.builtin.debug:
+        msg: >-
+          SATELLITE_PASSWORD is not set. The "{{ sat_prefix }}API" credential
+          will be created with an empty password and must be completed in the
+          AAP UI before any template will run.
+      when:
+        - sat_manage_credential | bool
+        - sat_satellite_password | length == 0
+
+  roles:
+    # Order matters: the dispatch role creates objects in dependency order
+    # (organizations before credentials, templates before workflows).
+    - role: infra.aap_configuration.dispatch

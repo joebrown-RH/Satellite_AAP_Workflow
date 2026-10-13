@@ -1,0 +1,9 @@
+# Required by the community.general `json_query` filter, which is used in
+# publish_content_views.yml, promote_content_views.yml, emergency_publish.yml
+# and clean_emergency.yml. Without it those playbooks fail at runtime with
+# "You need to install 'jmespath' prior to running json_query filter".
+jmespath
+
+# redhat.satellite talks to the Satellite API over HTTPS.
+requests>=2.31.0
+PyYAML

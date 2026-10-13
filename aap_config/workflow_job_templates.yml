@@ -1,0 +1,181 @@
+---
+# The three workflows from Workflows.txt, as config-as-code.
+#
+# Deviations from the text file, and why:
+#
+#   * "Send alert" is a notification_templates_error attachment rather than a
+#     failure node - see notification_templates.yml for the reasoning.
+#
+#   * "Update Systems" and "Emergency Publish" gain an optional approval node
+#     before anything touches a client. Both workflows promote content and
+#     then patch machines; a Prod run wants a human gate. Controlled by
+#     sat_require_patch_approval in defaults.yml.
+#
+#   * The closing errata report is wired with always_nodes, not success_nodes.
+#     It is informational ("shows no updates remaining"), so a transient API
+#     error on the report must not mark a successful patch run as failed.
+#
+# The node lists are built as variables first so the approval node can be
+# removed entirely when it is disabled. Leaving an unreferenced node in
+# simplified_workflow_nodes would make it a ROOT node that fires immediately
+# at workflow start - the opposite of a gate.
+
+# --- Shared node definitions ------------------------------------------------
+
+_sat_promote_node:
+  identifier: promote
+  unified_job_template:
+    name: "{{ sat_prefix }}Promote Content Views"
+    type: job_template
+    organization:
+      name: "{{ sat_aap_organization }}"
+  success_nodes: "{{ ['approval'] if sat_require_patch_approval | bool else ['errata_before'] }}"
+
+_sat_emergency_publish_node:
+  identifier: emergency_publish
+  unified_job_template:
+    name: "{{ sat_prefix }}Emergency Publish"
+    type: job_template
+    organization:
+      name: "{{ sat_aap_organization }}"
+  success_nodes: "{{ ['approval'] if sat_require_patch_approval | bool else ['errata_before'] }}"
+
+# BEFORE report. lifecycle_prior=true reports against the step the content was
+# promoted FROM, i.e. what is about to be installed.
+_sat_errata_before_node:
+  identifier: errata_before
+  unified_job_template:
+    name: "{{ sat_prefix }}Report Installable Errata"
+    type: job_template
+    organization:
+      name: "{{ sat_aap_organization }}"
+  extra_data:
+    lifecycle_prior: true
+  success_nodes:
+    - patch
+
+# AFTER report. Reports against the environment the hosts are now on, so a
+# clean run comes back empty.
+_sat_errata_after_node:
+  identifier: errata_after
+  unified_job_template:
+    name: "{{ sat_prefix }}Report Installable Errata"
+    type: job_template
+    organization:
+      name: "{{ sat_aap_organization }}"
+  extra_data:
+    lifecycle_prior: false
+
+_sat_patch_node:
+  identifier: patch
+  unified_job_template:
+    name: "{{ sat_prefix }}Update Systems"
+    type: job_template
+    organization:
+      name: "{{ sat_aap_organization }}"
+  # always_nodes: the closing report runs whether or not patching succeeded,
+  # so an operator always sees what is still outstanding.
+  always_nodes:
+    - errata_after
+
+# --- Node lists per workflow ------------------------------------------------
+
+_sat_publishing_nodes:
+  - identifier: clean_emergency
+    unified_job_template:
+      name: "{{ sat_prefix }}Clean Emergency Content View"
+      type: job_template
+      organization:
+        name: "{{ sat_aap_organization }}"
+    success_nodes:
+      - publish
+  - identifier: publish
+    unified_job_template:
+      name: "{{ sat_prefix }}Publish Content Views"
+      type: job_template
+      organization:
+        name: "{{ sat_aap_organization }}"
+
+_sat_update_nodes_all:
+  - "{{ _sat_promote_node }}"
+  - identifier: approval
+    approval_node:
+      name: "{{ sat_prefix }}Approve patching"
+      description: "Content is promoted. Approve to begin patching the hosts."
+      timeout: "{{ sat_approval_timeout }}"
+    success_nodes:
+      - errata_before
+  - "{{ _sat_errata_before_node }}"
+  - "{{ _sat_patch_node }}"
+  - "{{ _sat_errata_after_node }}"
+
+_sat_emergency_nodes_all:
+  - "{{ _sat_emergency_publish_node }}"
+  - identifier: approval
+    approval_node:
+      name: "{{ sat_prefix }}Approve emergency patching"
+      description: "Emergency content is published. Approve to begin patching."
+      timeout: "{{ sat_approval_timeout }}"
+    success_nodes:
+      - errata_before
+  # The emergency content view is attached straight to the composites rather
+  # than promoted, so the "before" view is the current environment, not its
+  # prior step.
+  - "{{ _sat_errata_before_node | combine({'extra_data': {'lifecycle_prior': false}}) }}"
+  - "{{ _sat_patch_node }}"
+  - "{{ _sat_errata_after_node }}"
+
+_sat_drop_approval: "{{ not (sat_require_patch_approval | bool) }}"
+
+# --- Workflows --------------------------------------------------------------
+
+controller_workflows:
+
+  # Publishing: clean the emergency content view, then publish everything.
+  # Clearing first is what makes the subsequent publish produce clean
+  # composite versions.
+  - name: "{{ sat_prefix }}Publishing"
+    description: "Reset the emergency content view, then publish all content views"
+    organization: "{{ sat_aap_organization }}"
+    inventory: "{{ sat_prefix }}Control"
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/publish_content_views.json.j2', convert_data=False) | from_json }}"
+    notification_templates_error:
+      - "{{ sat_prefix }}Workflow Failure"
+    state: present
+    simplified_workflow_nodes: "{{ _sat_publishing_nodes }}"
+
+  # Update Systems: promote -> [approval] -> report -> patch -> report
+  - name: "{{ sat_prefix }}Update Systems"
+    description: "Promote content to a lifecycle environment, then patch the hosts in it"
+    organization: "{{ sat_aap_organization }}"
+    inventory: "{{ sat_prefix }}Clients"
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/update_systems_workflow.json.j2', convert_data=False) | from_json }}"
+    notification_templates_error:
+      - "{{ sat_prefix }}Workflow Failure"
+    state: present
+    simplified_workflow_nodes: >-
+      {{ _sat_update_nodes_all | rejectattr('identifier', 'equalto', 'approval') | list
+         if _sat_drop_approval | bool else _sat_update_nodes_all }}
+
+  # Emergency Publish: publish -> [approval] -> report -> patch -> report.
+  # No promote step; emergency_publish.yml attaches the emergency content view
+  # to the composites and publishes them directly.
+  - name: "{{ sat_prefix }}Emergency Publish"
+    description: "Push specific errata out ahead of the normal patch window and apply them"
+    organization: "{{ sat_aap_organization }}"
+    inventory: "{{ sat_prefix }}Clients"
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/emergency_workflow.json.j2', convert_data=False) | from_json }}"
+    notification_templates_error:
+      - "{{ sat_prefix }}Workflow Failure"
+    state: present
+    simplified_workflow_nodes: >-
+      {{ _sat_emergency_nodes_all | rejectattr('identifier', 'equalto', 'approval') | list
+         if _sat_drop_approval | bool else _sat_emergency_nodes_all }}

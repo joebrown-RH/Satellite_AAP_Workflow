@@ -1,0 +1,23 @@
+---
+# The only play that connects to the managed hosts themselves. Point this at a
+# Satellite-sourced inventory and use `limit` (or the inventory source's
+# foreman_search) to target a host group / patch group - see
+# docs/satellite/patching.md.
+- name: Update RHEL Systems
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Update all packages
+      ansible.builtin.package:
+        name: '*'
+        state: latest
+
+    - name: Include least reboot tasks
+      when: reboot == "least"
+      ansible.builtin.include_role:
+        name: satellite_restart_least
+
+    - name: Reboot always
+      when: reboot == "always"
+      ansible.builtin.reboot:

@@ -1,0 +1,25 @@
+---
+# Workflows.txt models "Send alert" as a node on each failure edge. A
+# notification template is the better fit:
+#
+#   - a failure NODE needs its own credentials, EE and inventory, and can
+#     itself fail - leaving a failed workflow with no alert sent
+#   - notifications are delivered by the controller itself, are retried, and
+#     fire even when the EE cannot start at all
+#
+# Attached to the three workflows via notification_templates_error in
+# workflow_job_templates.yml.
+controller_notifications:
+  - name: "{{ sat_prefix }}Workflow Failure"
+    description: "Email the Satellite admins when a content lifecycle workflow fails"
+    organization: "{{ sat_aap_organization }}"
+    notification_type: email
+    notification_configuration:
+      host: "{{ sat_alert_email_host }}"
+      port: "{{ sat_alert_email_port }}"
+      use_tls: "{{ sat_alert_email_use_tls }}"
+      use_ssl: false
+      sender: "{{ sat_alert_email_sender }}"
+      recipients: "{{ sat_alert_email_recipients }}"
+      timeout: 30
+    state: present

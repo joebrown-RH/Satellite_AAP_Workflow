@@ -1,0 +1,36 @@
+{
+  "name": "Emergency Publish",
+  "description": "Push specific errata out ahead of the normal patch window and apply them. Use the Limit field on launch to target a host group or patch group.",
+  "spec": [
+    {
+      "question_name": "Errata IDs",
+      "question_description": "One advisory per line, e.g. RHSA-2026:73979. These become the include rules on the emergency content view's errata filter.",
+      "variable": "errata_ids",
+      "type": "textarea",
+      "default": "",
+      "required": true
+    },
+    {
+      "question_name": "Lifecycle environment",
+      "question_description": "The environment the errata reports are scoped to. The emergency content view is attached directly to the composites, so no promotion happens here.",
+      "variable": "lifecycle_environment",
+      "type": "multiplechoice",
+      "choices": [
+{% for env in sat_lifecycle_environments %}
+        {{ env | to_json }}{{ "," if not loop.last }}
+{% endfor %}
+      ],
+      "default": {{ sat_lifecycle_environments | first | to_json }},
+      "required": true
+    },
+    {
+      "question_name": "Restart policy",
+      "question_description": "least = reboot only if the kernel or a core library changed, otherwise restart just the affected services. always = reboot every host unconditionally.",
+      "variable": "reboot",
+      "type": "multiplechoice",
+      "choices": ["least", "always"],
+      "default": "least",
+      "required": true
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+---
+# Two inventories, because the bundle has two very different kinds of play.
+#
+# 1. Satellite Control - a single localhost entry. The content-view playbooks
+#    drive the Satellite REST API, so they need somewhere to execute, not SSH
+#    access to the Satellite box. Keeping this to one host is what guarantees
+#    a content view is published once rather than once per client.
+#
+# 2. Satellite Clients - the managed RHEL estate, sourced from Satellite
+#    itself so host groups and host collections stay authoritative.
+controller_inventories:
+  - name: "{{ sat_prefix }}Control"
+    description: "Execution target for the Satellite API playbooks (localhost)"
+    organization: "{{ sat_aap_organization }}"
+    state: present
+
+  - name: "{{ sat_prefix }}Clients"
+    description: "RHEL hosts managed by Satellite, synced from the Satellite API"
+    organization: "{{ sat_aap_organization }}"
+    state: present
+
+controller_hosts:
+  - name: localhost
+    inventory: "{{ sat_prefix }}Control"
+    description: "Runs inside the execution environment; no SSH required"
+    variables:
+      ansible_connection: local
+      ansible_python_interpreter: "{% raw %}{{ ansible_playbook_python }}{% endraw %}"
+    state: present

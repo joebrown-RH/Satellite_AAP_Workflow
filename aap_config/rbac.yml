@@ -1,0 +1,44 @@
+---
+# Ships the bundle with usable permissions so day-2 operation does not require
+# a superuser. Both teams are created empty - add members in the AAP UI or
+# wire them to your LDAP/SAML group mappings.
+sat_manage_rbac: true
+
+controller_teams:
+  - name: "{{ sat_prefix }}Operators"
+    description: "Can run the content lifecycle workflows, but not change them"
+    organization: "{{ sat_aap_organization }}"
+    state: "{{ 'present' if sat_manage_rbac else 'exists' }}"
+
+  - name: "{{ sat_prefix }}Admins"
+    description: "Can modify the Satellite automation templates and workflows"
+    organization: "{{ sat_aap_organization }}"
+    state: "{{ 'present' if sat_manage_rbac else 'exists' }}"
+
+controller_roles:
+  # Operators: launch the three workflows and read the job templates behind
+  # them. Deliberately no execute on the individual job templates - running
+  # "Update Systems" on its own skips the promote and approval steps.
+  - team: "{{ sat_prefix }}Operators"
+    workflows:
+      - "{{ sat_prefix }}Publishing"
+      - "{{ sat_prefix }}Update Systems"
+      - "{{ sat_prefix }}Emergency Publish"
+    role: execute
+
+  - team: "{{ sat_prefix }}Operators"
+    workflows:
+      - "{{ sat_prefix }}Update Systems"
+      - "{{ sat_prefix }}Emergency Publish"
+    role: approval
+
+  - team: "{{ sat_prefix }}Operators"
+    inventories:
+      - "{{ sat_prefix }}Clients"
+    role: read
+
+  # Admins: full control of everything this bundle owns.
+  - team: "{{ sat_prefix }}Admins"
+    organizations:
+      - "{{ sat_aap_organization }}"
+    role: admin

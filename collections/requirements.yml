@@ -1,0 +1,27 @@
+---
+# AAP installs collections from THIS path only (<project_root>/collections/requirements.yml).
+# Per-directory requirements files are ignored by the controller.
+#
+# Version floors are deliberately loose so the bundle imports cleanly into most
+# environments. Pin to exact versions (`version: "x.y.z"`) before promoting this
+# project to production so a Galaxy release cannot change job behaviour.
+collections:
+  # Satellite / Foreman modules used by every content-view playbook.
+  - name: redhat.satellite
+    version: ">=4.0.0"
+
+  # Provides the `json_query` filter used in publish / promote / emergency /
+  # clean_emergency. Also requires the `jmespath` Python library - see
+  # execution-environment/requirements.txt.
+  - name: community.general
+    version: ">=8.0.0"
+
+  # Config-as-code: used by playbooks/configure_aap.yml to build this bundle's
+  # credentials, templates and workflows inside AAP. Not needed by the
+  # Satellite playbooks themselves.
+  - name: infra.aap_configuration
+    version: ">=2.0.0"
+
+  # AAP API modules that infra.aap_configuration drives.
+  - name: ansible.controller
+    version: ">=4.5.0"

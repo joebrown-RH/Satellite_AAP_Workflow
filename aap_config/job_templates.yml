@@ -1,0 +1,130 @@
+---
+# Six job templates, one per playbook.
+#
+# Variable sourcing follows the three-way split the original extra_vars.yaml
+# files documented in their comments:
+#
+#   "# Ansible Vault"    -> injected by the Satellite API credential
+#   "# Static Variable"  -> extra_vars below, driven from defaults.yml
+#   "# Input"            -> survey question (surveys/*.json)
+#
+# ask_variables_on_launch is true on every template so that extra_vars set at
+# the WORKFLOW level (from the workflow survey) propagate down into the nodes.
+# Without it the workflow surveys in workflow_job_templates.yml have no effect.
+
+controller_templates:
+
+  # --- Content view publishing ---------------------------------------------
+  - name: "{{ sat_prefix }}Publish Content Views"
+    description: "Publish a new version of every component and composite content view"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/publish_content_views.yml
+    inventory: "{{ sat_prefix }}Control"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials:
+      - "{{ sat_prefix }}API"
+    job_type: run
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/publish_content_views.json.j2', convert_data=False) | from_json }}"
+    extra_vars:
+      exclude_content_views:
+        - "{{ sat_emergency_content_view }}"
+    state: present
+
+  - name: "{{ sat_prefix }}Promote Content Views"
+    description: "Promote composite content views to the next lifecycle environment"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/promote_content_views.yml
+    inventory: "{{ sat_prefix }}Control"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials:
+      - "{{ sat_prefix }}API"
+    job_type: run
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/promote_content_views.json.j2', convert_data=False) | from_json }}"
+    extra_vars:
+      content_view_queries:
+        - "composite = true"
+    state: present
+
+  # --- Emergency patching --------------------------------------------------
+  - name: "{{ sat_prefix }}Emergency Publish"
+    description: "Build the emergency content view from specific errata and attach it to the composites"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/emergency_publish.yml
+    inventory: "{{ sat_prefix }}Control"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials:
+      - "{{ sat_prefix }}API"
+    job_type: run
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/emergency_publish.json.j2', convert_data=False) | from_json }}"
+    extra_vars:
+      emergency_content_view: "{{ sat_emergency_content_view }}"
+      # Structured config, not survey-able - kept in defaults.yml.
+      repositories: "{{ sat_emergency_repositories }}"
+      composite_content_view_queries: "{{ sat_composite_content_view_queries }}"
+    state: present
+
+  - name: "{{ sat_prefix }}Clean Emergency Content View"
+    description: "Detach the emergency content view from the composites and clear its errata filter"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/clean_emergency.yml
+    inventory: "{{ sat_prefix }}Control"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials:
+      - "{{ sat_prefix }}API"
+    job_type: run
+    ask_variables_on_launch: true
+    extra_vars:
+      emergency_content_view: "{{ sat_emergency_content_view }}"
+    state: present
+
+  # --- Reporting -----------------------------------------------------------
+  # Runs against the CLIENT inventory (errata are per-host) but every task is
+  # an API call, so the playbook sets connection: local and never SSHes out.
+  - name: "{{ sat_prefix }}Report Installable Errata"
+    description: "List installable errata per host, before and after patching"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/report_errata.yml
+    inventory: "{{ sat_prefix }}Clients"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials:
+      - "{{ sat_prefix }}API"
+    job_type: run
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    forks: "{{ sat_update_forks }}"
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/report_errata.json.j2', convert_data=False) | from_json }}"
+    state: present
+
+  # --- Patching ------------------------------------------------------------
+  - name: "{{ sat_prefix }}Update Systems"
+    description: "Install all available updates on the targeted RHEL hosts and restart as required"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/update_systems.yml
+    inventory: "{{ sat_prefix }}Clients"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials:
+      - "{{ sat_prefix }}Client SSH"
+    job_type: run
+    become_enabled: true
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    forks: "{{ sat_update_forks }}"
+    job_slice_count: "{{ sat_update_job_slices }}"
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/update_systems.json.j2', convert_data=False) | from_json }}"
+    extra_vars:
+      reboot: least
+    state: present

@@ -1,0 +1,19 @@
+{
+  "name": "Promote Content Views",
+  "description": "Choose the lifecycle environment to promote into.",
+  "spec": [
+    {
+      "question_name": "Target lifecycle environment",
+      "question_description": "Content is promoted from this environment's prior step into this one. Following the building-block model in docs/satellite/content_views.md, only composite content views need promoting.",
+      "variable": "lifecycle_environment",
+      "type": "multiplechoice",
+      "choices": [
+{% for env in sat_lifecycle_environments %}
+        {{ env | to_json }}{{ "," if not loop.last }}
+{% endfor %}
+      ],
+      "default": {{ sat_lifecycle_environments | first | to_json }},
+      "required": true
+    }
+  ]
+}

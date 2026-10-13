@@ -1,0 +1,17 @@
+---
+controller_projects:
+  - name: "{{ sat_prefix }}Content Lifecycle"
+    description: "Satellite content view publish / promote / patch automation"
+    organization: "{{ sat_aap_organization }}"
+    scm_type: git
+    scm_url: "{{ sat_project_url }}"
+    scm_branch: "{{ sat_project_branch }}"
+    credential: "{{ sat_project_credential | default(omit, true) }}"
+    default_environment: "{{ sat_ee_name }}"
+    # Refresh on launch so a merged fix is picked up without a manual sync,
+    # and clean so a failed job cannot leave a dirty checkout behind.
+    scm_clean: true
+    scm_delete_on_update: false
+    scm_update_on_launch: true
+    scm_update_cache_timeout: 300
+    state: present

@@ -1,0 +1,5 @@
+---
+controller_organizations:
+  - name: "{{ sat_aap_organization }}"
+    description: "Satellite content lifecycle and patching automation"
+    state: present

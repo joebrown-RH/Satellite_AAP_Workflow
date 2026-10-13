@@ -1,8 +1,0 @@
-satellite_username: xxxxxx                                  # Ansible Vault
-satellite_password: xxxxxx                                  # Ansible Vault
-satellite_server_url: https://satellite.rh.local            # Static Variable
-satellite_validate_certs: false                             # Static Variable
-satellite_organization: Demo                                # Static Variable unless required (rarely required) and then input
-lifecycle_environment: Dev                                  # Input
-lifecycle_prior: true                                       # Input
-host: satclient.rh.local                                    # Input

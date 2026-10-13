@@ -1,0 +1,21 @@
+---
+# Build with:  ansible-builder build -f execution-environment.yml -t satellite-workflow-ee:1.0.0
+#
+# Pre-baking the collections avoids a Galaxy round-trip on every job launch and
+# pins the dependency set so a customer's upstream release cannot change job
+# behaviour mid-patch-window.
+version: 3
+
+images:
+  base_image:
+    # Requires an active Red Hat subscription to pull. Customers without
+    # registry.redhat.io access can substitute quay.io/ansible/awx-ee:latest.
+    name: registry.redhat.io/ansible-automation-platform-25/ee-supported-rhel9:latest
+
+dependencies:
+  galaxy: ../collections/requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
+options:
+  package_manager_path: /usr/bin/microdnf

@@ -1,1 +1,12 @@
-/*/collections
+# Collections installed locally by `ansible-galaxy collection install -r collections/requirements.yml`
+collections/ansible_collections/
+
+# Local-only credential material. Never commit a filled-in copy.
+vars/*.local.yml
+*.vault
+
+# EE build artifacts
+execution-environment/context/
+
+*.retry
+__pycache__/

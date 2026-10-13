@@ -1,0 +1,40 @@
+---
+# Convenience file for running the playbooks OUTSIDE AAP, e.g.
+#
+#   ansible-playbook playbooks/publish_content_views.yml -e @vars/satellite_example.yml
+#
+# Inside AAP none of this is needed: the credential injects the connection
+# variables and the job template / survey supplies the rest. This file exists
+# so the playbooks stay runnable from a workstation for development.
+#
+# Copy to vars/satellite.local.yml (gitignored) before putting real values in.
+
+# --- Supplied by the "Satellite - API" credential inside AAP ----------------
+satellite_server_url: https://satellite.rh.local
+satellite_username: admin
+satellite_password: CHANGEME
+satellite_organization: Demo
+satellite_validate_certs: false
+
+# --- Static config: job template extra_vars inside AAP ----------------------
+emergency_content_view: cv_Emergency
+
+repositories:
+  - product: Red Hat Enterprise Linux for x86_64
+    query: 'name ~ "*AppStream RPMs*" or name ~ "*BaseOS RPMs*"'
+
+composite_content_view_queries:
+  - 'composite = true and name != "ccv_SAP"'
+
+content_view_queries:
+  - composite = true
+
+exclude_content_views:
+  - cv_Emergency
+
+# --- Survey answers inside AAP ----------------------------------------------
+lifecycle_environment: Dev
+lifecycle_prior: true
+errata_ids:
+  - RHSA-2026:73979
+reboot: least

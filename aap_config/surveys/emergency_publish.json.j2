@@ -1,0 +1,14 @@
+{
+  "name": "Emergency Publish",
+  "description": "Identify the errata that must go out ahead of the normal patch window.",
+  "spec": [
+    {
+      "question_name": "Errata IDs",
+      "question_description": "One advisory per line, e.g. RHSA-2026:73979. These become the include rules on the emergency content view's errata filter. AAP returns a textarea as a single newline-delimited string, so the playbook normalises it into a list.",
+      "variable": "errata_ids",
+      "type": "textarea",
+      "default": "",
+      "required": true
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+---
+controller_execution_environments:
+  - name: "{{ sat_ee_name }}"
+    image: "{{ sat_ee_image }}"
+    organization: "{{ sat_aap_organization }}"
+    # `missing` avoids a registry round-trip on every single job launch while
+    # still picking up a newly pushed tag the first time it is referenced.
+    pull: missing
+    credential: "{{ sat_ee_credential | default(omit, true) }}"
+    state: present

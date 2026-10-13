@@ -1,0 +1,83 @@
+---
+#############################################################################
+# THE ONLY FILE MOST CUSTOMERS NEED TO EDIT.
+#
+# Every other file in aap_config/ references these values. Change them here
+# once and the whole bundle - credentials, templates, workflows, schedules -
+# follows.
+#
+# Secrets are NOT in this file. They are supplied at run time as described in
+# aap_config/credentials.yml.
+#############################################################################
+
+# --- Naming -----------------------------------------------------------------
+# Prefixed onto every object this bundle creates so it cannot collide with
+# templates a customer already has.
+sat_prefix: "Satellite - "
+
+# AAP organization that will own everything in this bundle.
+sat_aap_organization: "Satellite Automation"
+
+# --- Satellite connection ---------------------------------------------------
+# The URL and cert policy are non-secret, so they live here. Username and
+# password come from the credential (see credentials.yml).
+sat_url: "https://satellite.rh.local"
+sat_validate_certs: false
+
+# Satellite organization that owns the content views.
+sat_organization: "Demo"
+
+# --- Content view model -----------------------------------------------------
+# Matches the building-block design in docs/satellite/content_views.md.
+sat_emergency_content_view: "cv_Emergency"
+
+# Lifecycle path, in promotion order. Drives the promote/report surveys.
+sat_lifecycle_environments:
+  - Dev
+  - Test
+  - QA
+  - Prod
+
+# Search queries identifying the composite content views that carry the
+# emergency content view. Excludes SAP per the worked example in the docs.
+sat_composite_content_view_queries:
+  - 'composite = true and name != "ccv_SAP"'
+
+# Repositories the emergency content view draws from.
+sat_emergency_repositories:
+  - product: "Red Hat Enterprise Linux for x86_64"
+    query: 'name ~ "*AppStream RPMs*" or name ~ "*BaseOS RPMs*"'
+
+# --- Source control ---------------------------------------------------------
+sat_project_url: "https://github.com/example/Satellite_AAP_Workflow.git"
+sat_project_branch: "main"
+# Set to a credential name if the repo is private, otherwise leave null.
+sat_project_credential: null
+
+# --- Execution environment --------------------------------------------------
+# Build with execution-environment/execution-environment.yml, push to your
+# registry, then point this at it.
+sat_ee_name: "Satellite Workflow EE"
+sat_ee_image: "quay.io/example/satellite-workflow-ee:1.0.0"
+# Credential name for a private registry, otherwise null.
+sat_ee_credential: null
+
+# --- Alerting ---------------------------------------------------------------
+# Used by the failure notification attached to all three workflows.
+sat_alert_email_recipients:
+  - "satellite-admins@example.com"
+sat_alert_email_sender: "aap-noreply@example.com"
+sat_alert_email_host: "smtp.example.com"
+sat_alert_email_port: 25
+sat_alert_email_use_tls: false
+
+# --- Behaviour --------------------------------------------------------------
+# Require a human to approve before patching runs. Strongly recommended.
+sat_require_patch_approval: true
+# Seconds an approval node waits before timing out. 0 = wait forever.
+sat_approval_timeout: 3600
+
+# Parallelism for the client-facing patch job.
+sat_update_forks: 20
+# Split the patch job across N slices for large estates. 1 = no slicing.
+sat_update_job_slices: 1
