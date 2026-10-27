@@ -1,0 +1,149 @@
+- name: Configure Satellite Server for Demo
+  hosts: all
+  gather_facts: false
+  vars:
+    lifecycle_environments:
+      - prior: Library
+        name: Dev
+      - prior: Dev
+        name: Test
+      - prior: Test
+        name: QA
+      - prior: QA
+        name: Prod
+    os_versions:
+      - 9
+      - 10
+    repositories:
+      - BaseOS
+      - AppStream
+  tasks:
+    - name: Create Lifecycle Environments
+      redhat.satellite.lifecycle_environment:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "{{ item.name }}"
+        prior: "{{ item.prior }}"
+        state: "present"
+      loop: "{{ lifecycle_environments }}"
+
+    - name: Enable Repo Sets
+      redhat.satellite.repository_set:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        label: "rhel-{{ item[0] }}-for-x86_64-{{ item[1] | lower }}-rpms"
+        repositories:
+          - releasever: "{{ item[0] }}"
+      loop: "{{ os_versions | product(repositories) | list }}"        
+
+    - name: Sync repos
+      redhat.satellite.repository_sync:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        product: "Red Hat Enterprise Linux for x86_64"
+      async: 3600
+      poll: 0
+      register: rh_sync_job
+
+    - name: Create EPEL GPG Key entry
+      redhat.satellite.content_credential:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "EPEL {{ item }} GPG"
+        content_type: gpg_key
+        content: "{{ lookup('ansible.builtin.url', 'https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-' ~ item, split_lines=False) }}"
+      loop: "{{ os_versions }}"
+
+    - name: Create EPEL Product entry
+      redhat.satellite.product:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "EPEL"
+        state: present
+
+    - name: Add EPEL Repositories to Product Entry
+      redhat.satellite.repository:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "EPEL {{ item }}"
+        state: present
+        content_type: "yum"
+        product: "EPEL"
+        url: "https://dl.fedoraproject.org/pub/epel/{{ item }}/Everything/x86_64/"
+        gpg_key: "EPEL {{ item }} GPG"
+      loop: "{{ os_versions }}"
+
+    - name: Sync EPEL repos
+      redhat.satellite.repository_sync:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        product: "EPEL"
+      async: 3600
+      poll: 0
+      register: epel_sync_job
+
+    - name: Create RHEL Content View
+      redhat.satellite.content_view:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "cv_RHEL"
+        repositories: >-
+          {%- set result = [] -%}
+          {%- for item in os_versions | product(repositories) | list -%}
+            {%- set _ = result.append({'name': "Red Hat Enterprise Linux " ~ item[0] ~ " for x86_64 - " ~ item[1] ~ " RPMs " ~ item[0], 'product': "Red Hat Enterprise Linux for x86_64"}) -%}
+          {%- endfor -%}
+          {{ result }}
+    
+    - name: Create EPEL Content View
+      redhat.satellite.content_view:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "cv_EPEL"
+        repositories: >-
+          {%- set result = [] -%}
+          {%- for item in os_versions -%}
+            {%- set _ = result.append({'name': "EPEL " ~ item, 'product': "EPEL"}) -%}
+          {%- endfor -%}
+          {{ result }}
+    
+    - name: Create Composite Content Views
+      redhat.satellite.content_view:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "ccv_RHEL_EPEL"
+        composite: true
+        components:
+          - content_view: cv_RHEL
+            latest: true
+          - content_view: cv_EPEL
+            latest: true

@@ -1,0 +1,25 @@
+- identifier: "Clean Emergency CV"
+  unified_job_template:
+    name: "Satellite/Clean Emergency CV"
+    inventory:
+      organization:
+        name: Default
+    type: job_template
+  related:
+    success_nodes:
+      - identifier: "Publish CVs"
+    failure_nodes: []
+    always_nodes: []
+    credentials: []
+- identifier: "Publish CVs"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "Satellite/Publish"
+    type: job_template
+  credentials: []
+  related:
+    success_nodes: []
+    failure_nodes: []
+    always_nodes: []
+    credentials: []

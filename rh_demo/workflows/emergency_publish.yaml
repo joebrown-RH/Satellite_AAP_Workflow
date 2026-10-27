@@ -1,0 +1,25 @@
+- identifier: "Publish Emergency CV"
+  unified_job_template:
+    name: "Satellite/Emergency Publish"
+    inventory:
+      organization:
+        name: Default
+    type: job_template
+  related:
+    success_nodes:
+      - identifier: "Publish CVs"
+    failure_nodes: []
+    always_nodes: []
+    credentials: []
+- identifier: "Report Errata"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "Satellite/Publish"
+    type: job_template
+  credentials: []
+  related:
+    success_nodes: []
+    failure_nodes: []
+    always_nodes: []
+    credentials: []

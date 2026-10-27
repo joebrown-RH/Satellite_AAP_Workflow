@@ -1,0 +1,170 @@
+- name: Cleanup existing Satellite setup
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Get Organization Info
+      redhat.satellite.organization_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        name: "{{ satellite_organization | default(omit) }}"
+      register: org_info
+
+    - name: Extract Org ID
+      set_fact:
+        org_id: "{{ org_info.organization.id }}"
+
+    - name: Get all Activation Keys
+      ansible.builtin.uri:
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/organizations/{{ org_id }}/activation_keys"
+        force_basic_auth: true
+        url_username: "{{ satellite_username | default(omit) }}"
+        url_password: "{{ satellite_password | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+      register: ak_request
+
+    - name: Delete all Activation Keys
+      ansible.builtin.uri:
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/activation_keys/{{ item }}"
+        method: DELETE
+        force_basic_auth: true
+        url_username: "{{ satellite_username | default(omit) }}"
+        url_password: "{{ satellite_password | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        status_code:
+          - 200
+          - 202
+      loop: "{{ ak_request.json | json_query('results[].id') }}"
+
+    - name: Get all Hosts
+      redhat.satellite.host_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+      register: all_hosts
+
+    - name: Move Hosts to default CV
+      when: item.content_view != "Default Organization View"
+      redhat.satellite.host:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "{{ item.name }}"
+        lifecycle_environment: Library
+        content_view: Default Organization View
+      loop: "{{ all_hosts.hosts | json_query('[].{ name: name, content_view: content_facet_attributes.content_view.name}') }}"
+
+    - name: Get all Content Views
+      redhat.satellite.content_view_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+      register: content_views
+
+    - name: Remove Content View from Environments
+      when: item.content_view != 1
+      ansible.builtin.uri:
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/content_views/{{ item.content_view }}/environments/{{ item.env }}"
+        method: DELETE
+        force_basic_auth: true
+        url_username: "{{ satellite_username | default(omit) }}"
+        url_password: "{{ satellite_password | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        status_code:
+          - 200
+          - 202
+      loop: >-
+          {%- set input = content_views.content_views | json_query('[?environments != []].{content_view: id, env: environments[].id}') -%}
+          {%- set result = [] -%}
+          {%- for item in q('subelements', input, 'env') -%}
+            {%- set _ = result.append({'content_view': item[0].content_view, 'env': item[1]}) -%}
+          {%- endfor -%}
+          {{ result }}
+    
+
+    - name: Get all Lifecycle Environments
+      ansible.builtin.uri:
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/organizations/{{ org_id }}/environments"
+        force_basic_auth: true
+        url_username: "{{ satellite_username | default(omit) }}"
+        url_password: "{{ satellite_password | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+      register: lifecycle_request
+
+    - name: Delete all Lifecycle Environments
+      ansible.builtin.uri:
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/organizations/{{ org_id }}/environments/{{ item }}"
+        method: DELETE
+        force_basic_auth: true
+        url_username: "{{ satellite_username | default(omit) }}"
+        url_password: "{{ satellite_password | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+      loop: "{{ lifecycle_request.json | json_query('results[].id') | reject('eq', 1) | list }}"
+
+
+    - name: Get all Content Views
+      redhat.satellite.content_view_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+      register: content_views
+
+    - name: Remove Composite Content Views
+      ansible.builtin.uri:
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/content_views/{{ item }}"
+        method: DELETE
+        force_basic_auth: true
+        url_username: "{{ satellite_username | default(omit) }}"
+        url_password: "{{ satellite_password | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        status_code:
+          - 200
+          - 202
+      loop: "{{ content_views | json_query('content_views[?composite == `true`].id') }}"
+
+    - name: Remove Content Views
+      when: item != 1
+      ansible.builtin.uri:
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/content_views/{{ item }}"
+        method: DELETE
+        force_basic_auth: true
+        url_username: "{{ satellite_username | default(omit) }}"
+        url_password: "{{ satellite_password | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        status_code:
+          - 200
+          - 202
+      loop: "{{ content_views | json_query('content_views[?composite == `false`].id') }}"
+      
+    - name: Get Repo Sets
+      redhat.satellite.repository_set_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+      register: repo_sets
+
+    - name: Disable Repo Sets
+      when: item.repositories != []
+      redhat.satellite.repository_set:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "{{ item.name }}"
+        product: "{{ item.product }}"
+        state: disabled
+        all_repositories: true
+      loop: "{{ repo_sets.repository_sets | json_query('[].{product: product.name, name: name, repositories: repositories}') }}"
+        
