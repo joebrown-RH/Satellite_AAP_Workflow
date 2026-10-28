@@ -4,9 +4,17 @@
   gather_facts: false
 
   tasks:
+    - name: Read credentials from ini file
+      when: lookup('ansible.builtin.env', 'FOREMAN_INI_PATH', default=undef()) is defined
+      set_fact:
+        satellite_server_url: "{{ lookup('ansible.builtin.ini', 'url', section='foreman', file=lookup('ansible.builtin.env', 'FOREMAN_INI_PATH')) }}"
+        satellite_username: "{{ lookup('ansible.builtin.ini', 'username', section='foreman', file=lookup('ansible.builtin.env', 'FOREMAN_INI_PATH')) }}"
+        satellite_password: "{{ lookup('ansible.builtin.ini', 'password', section='foreman', file=lookup('ansible.builtin.env', 'FOREMAN_INI_PATH')) }}"
+        satellite_validate_certs: "{{ lookup('ansible.builtin.ini', 'ssl_verify', section='foreman', file=lookup('ansible.builtin.env', 'FOREMAN_INI_PATH')) }}"
+
     - name: Query for Content Views
       redhat.satellite.content_view_info:
-        username: "{{ satellite_username | default(omit) }}"
+        username: "{{ satellite_username |  | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
         server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
         validate_certs: "{{ satellite_validate_certs | default(omit) }}"
