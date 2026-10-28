@@ -4,7 +4,8 @@
 
   tasks:
     - name: debug
-      msg: "This is a test"
+      debug:
+        msg: "This is a test"
 
     # - name: Update all packages
     #   ansible.builtin.package:
