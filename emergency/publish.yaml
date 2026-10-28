@@ -19,10 +19,6 @@
       loop_control:
         loop_var: "repository"
 
-    - name: debug
-      debug:
-        msg: "{{ repo_list.results | json_query('[0].repositories[].{ name: name, product: product.name }') }}"
-
     - name: Ensure Emergency Content View exists
       redhat.satellite.content_view:
         username: "{{ satellite_username | default(omit) }}"
