@@ -1,6 +1,6 @@
 ---
 - name: Publish Content Views
-  hosts: all
+  hosts: localhost
   gather_facts: false
 
   tasks:
@@ -42,7 +42,14 @@
       until: async_poll_results.finished
       retries: 3600
 
-    # Check if async tasks passed
+    - name: Fail is publish failed
+      ansible.builtin.fail:
+        msg: Not all Content View publishes completed successfully
+      when: async_poll_results.failed
+      loop: "{{ async_results.results }}"
+      loop_control:
+        loop_var: "async_result_item"
+      register: async_poll_results
 
     - name: Query for Composite Content Views
       redhat.satellite.content_view_info:
@@ -82,4 +89,11 @@
       until: async_poll_results.finished
       retries: 3600
 
-    # Check if async tasks passed
+    - name: Fail is publish failed
+      ansible.builtin.fail:
+        msg: Not all Composite Content View publishes completed successfully
+      when: async_poll_results.failed
+      loop: "{{ async_results.results }}"
+      loop_control:
+        loop_var: "async_result_item"
+      register: async_poll_results
