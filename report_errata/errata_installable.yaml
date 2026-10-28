@@ -1,6 +1,6 @@
 ---
 - name: Get Installable Errata
-  hosts: all
+  hosts: "{{ host_query | default('foreman_' ~ (host_group | lower | replace('/', '_') | replace('-', '_')) ~':&foreman_hostcollection_patch_group_' ~ patch_group) }}"
   gather_facts: false
 
   tasks:
@@ -48,3 +48,10 @@
     - name: Debug
       debug:
         var: host_errata_info.host_errata
+    
+    - name: Store for future workflow steps
+      ansible.builtin.set_stats:
+      data:
+        available_errata: "host_errata_info.host_errata"
+      per_host: true
+      aggregate: false

@@ -1,6 +1,6 @@
 ---
 - name: Update RHEL Systems
-  hosts: "foreman_{{ host_group | lower | replace('/', '_') | replace('-', '_') }}:&foreman_hostcollection_patch_group_{{ patch_group }}"
+  hosts: "{{ host_query | default('foreman_' ~ (host_group | lower | replace('/', '_') | replace('-', '_')) ~':&foreman_hostcollection_patch_group_' ~ patch_group) }}"
 
   tasks:
     - name: debug

@@ -6,3 +6,4 @@ satellite_organization: Demo                                # Static Variable un
 lifecycle_environment: Dev                                  # Input
 lifecycle_prior: true                                       # Input
 host: satclient.rh.local                                    # Input
+host_query: localhost
