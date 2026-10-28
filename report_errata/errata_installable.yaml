@@ -51,7 +51,7 @@
     
     - name: Store for future workflow steps
       ansible.builtin.set_stats:
-      data:
-        available_errata: "host_errata_info.host_errata"
-      per_host: true
-      aggregate: false
+        data:
+          available_errata: "host_errata_info.host_errata"
+        per_host: true
+        aggregate: false
