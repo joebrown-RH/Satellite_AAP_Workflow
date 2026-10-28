@@ -45,7 +45,7 @@
     - name: Fail is publish failed
       ansible.builtin.fail:
         msg: Not all Content View publishes completed successfully
-      when: async_poll_results.failed
+      when: async_poll_results is failed
       loop: "{{ async_results.results }}"
       loop_control:
         loop_var: "async_result_item"
@@ -92,7 +92,7 @@
     - name: Fail is publish failed
       ansible.builtin.fail:
         msg: Not all Composite Content View publishes completed successfully
-      when: async_poll_results.failed
+      when: async_poll_results is failed
       loop: "{{ async_results.results }}"
       loop_control:
         loop_var: "async_result_item"
