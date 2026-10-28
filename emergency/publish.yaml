@@ -21,7 +21,7 @@
 
     - name: debug
       debug:
-        var: repo_list
+        msg: "{{ repo_list.results | json_query('[0].repositories[].{ name: name, product: product.name }') }}"
 
     - name: Ensure Emergency Content View exists
       redhat.satellite.content_view:
@@ -32,7 +32,7 @@
         organization: "{{ satellite_organization | default(omit) }}"
 
         name: "{{ emergency_content_view | default(omit) }}"
-        repositories: "{{ repo_list | json_query('repositories[0][].{ name: name, product: product.name }') }}"
+        repositories: "{{ repo_list.results | json_query('[0].repositories[].{ name: name, product: product.name }') }}"
         solve_dependencies: false
 
     - name: Ensure Errata Filter exists
