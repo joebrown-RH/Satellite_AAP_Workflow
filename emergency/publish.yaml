@@ -19,6 +19,10 @@
       loop_control:
         loop_var: "repository"
 
+    - name: debug
+      debug:
+        var: repo_list
+
     - name: Ensure Emergency Content View exists
       redhat.satellite.content_view:
         username: "{{ satellite_username | default(omit) }}"
