@@ -1,6 +1,6 @@
 ---
 - name: Cleanup Emergency Content View
-  hosts: all
+  hosts: localhost
   gather_facts: false
 
   tasks:
