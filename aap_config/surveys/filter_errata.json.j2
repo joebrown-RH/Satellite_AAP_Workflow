@@ -1,0 +1,14 @@
+{
+  "name": "Filter Installable Errata",
+  "description": "Scope the errata report.",
+  "spec": [
+    {
+      "question_name": "Errata Filter",
+      "question_description": "JSON Query to determine which errata should be immediately processed",
+      "variable": "errata_filter",
+      "type": "text",
+      "default": "[?severity==`Critical`]",
+      "required": true
+    }
+  ]
+}

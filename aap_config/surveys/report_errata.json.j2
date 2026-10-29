@@ -23,6 +23,32 @@
       "choices": ["true", "false"],
       "default": "true",
       "required": true
+    },
+    {
+      "question_name": "Host Query",
+      "question_description": "Which hosts should the report include",
+      "type": "text",
+      "variable": "host_query",
+      "required": false,
+    },
+    {
+      "question_name": "Patch Group",
+      "question_description": "Which patch group should the report include",
+      "type": "multiplechoice",
+      "variable": "patch_group",
+      "choices": [
+{% for pgroup in sat_patch_groups %}
+        {{ pgroup | to_json }}{{ "," if not loop.last }}
+{% endfor %}
+      ],
+      "required": false
+    },
+    {
+      "question_name": "Host Group",
+      "question_description": "Which host group should the report include",
+      "type": text,
+      "variable": "host_group",
+      "required": false
     }
   ]
 }

@@ -1,0 +1,32 @@
+satellite_username: admin
+satellite_password: MjQxMTg5
+satellite_server_url: https://satellite.f5rf4.sandbox3312.opentlc.com # No trailing slash
+satellite_validate_certs: false
+satellite_organization: Default Organization
+satellite_sync: false
+satellite_publish_promote: false
+
+lifecycle_environments:
+  - prior: Library
+    name: Dev
+  - prior: Dev
+    name: Test
+  - prior: Test
+    name: QA
+  - prior: QA
+    name: Prod
+os_versions:
+  - 9
+  - 10
+repositories:
+  - BaseOS
+  - AppStream
+
+
+
+aap_username: student
+aap_password: MjQxMTg5
+aap_server_url: https://ansible-1.f5rf4.sandbox3312.opentlc.com/
+aap_validate_certs: false
+aap_organization: Default
+aap_template_prefix: "~Satellite"

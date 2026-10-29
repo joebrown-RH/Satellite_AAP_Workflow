@@ -34,7 +34,7 @@
       register: lifecycle_environment_info
 
     - name: Store previous Lifecycle Environment
-      when: lifecycle_environment | default(false) | bool
+      when: lifecycle_prior | default(false) | bool
       set_fact:
         previous_lifecycle_environment: "{{ (lifecycle_environment_info.entity.lifecycle_environments | first).prior.name }}"
 

@@ -1,5 +1,5 @@
 ---
-# Six job templates, one per playbook.
+# Eight job templates, one per playbook.
 #
 # Variable sourcing follows the three-way split the original extra_vars.yaml
 # files documented in their comments:
@@ -14,44 +14,36 @@
 
 controller_templates:
 
-  # --- Content view publishing ---------------------------------------------
-  - name: "{{ sat_prefix }}Publish Content Views"
-    description: "Publish a new version of every component and composite content view"
+  # --- Check Sync Plan Status ----------------------------------------------
+  - name: "{{ sat_prefix }}Ensure Sync Plan Complete"
+    description: "Checks that the Sync Plan is complete"
     organization: "{{ sat_aap_organization }}"
     project: "{{ sat_prefix }}Content Lifecycle"
-    playbook: playbooks/publish_content_views.yml
+    playbook: playbooks/check_syncplan_complete.yml
     inventory: "{{ sat_prefix }}Control"
     execution_environment: "{{ sat_ee_name }}"
     credentials:
       - "{{ sat_prefix }}API"
     job_type: run
-    ask_variables_on_launch: true
-    survey_enabled: true
-    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/publish_content_views.json.j2', convert_data=False) | from_json }}"
-    extra_vars:
-      exclude_content_views:
-        - "{{ sat_emergency_content_view }}"
-    state: present
-
-  - name: "{{ sat_prefix }}Promote Content Views"
-    description: "Promote composite content views to the next lifecycle environment"
-    organization: "{{ sat_aap_organization }}"
-    project: "{{ sat_prefix }}Content Lifecycle"
-    playbook: playbooks/promote_content_views.yml
-    inventory: "{{ sat_prefix }}Control"
-    execution_environment: "{{ sat_ee_name }}"
-    credentials:
-      - "{{ sat_prefix }}API"
-    job_type: run
-    ask_variables_on_launch: true
-    survey_enabled: true
-    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/promote_content_views.json.j2', convert_data=False) | from_json }}"
-    extra_vars:
-      content_view_queries:
-        - "composite = true"
+    ask_variables_on_launch: false
     state: present
 
   # --- Emergency patching --------------------------------------------------
+  - name: "{{ sat_prefix }}Clean Emergency Content View"
+    description: "Detach the emergency content view from the composites and clear its errata filter"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/clean_emergency.yml
+    inventory: "{{ sat_prefix }}Control"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials:
+      - "{{ sat_prefix }}API"
+    job_type: run
+    ask_variables_on_launch: true
+    extra_vars:
+      emergency_content_view: "{{ sat_emergency_content_view }}"
+    state: present
+
   - name: "{{ sat_prefix }}Emergency Publish"
     description: "Build the emergency content view from specific errata and attach it to the composites"
     organization: "{{ sat_aap_organization }}"
@@ -72,19 +64,55 @@ controller_templates:
       composite_content_view_queries: "{{ sat_composite_content_view_queries }}"
     state: present
 
-  - name: "{{ sat_prefix }}Clean Emergency Content View"
-    description: "Detach the emergency content view from the composites and clear its errata filter"
+  - name: "{{ sat_prefix }}Filter Available Errata"
+    description: "Filters the available errata to determine what should be considered an emergency"
     organization: "{{ sat_aap_organization }}"
     project: "{{ sat_prefix }}Content Lifecycle"
-    playbook: playbooks/clean_emergency.yml
+    playbook: playbooks/filter_errata.yml
+    inventory: "{{ sat_prefix }}Control"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials: []
+    job_type: run
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/filter_errata.json.j2', convert_data=False) | from_json }}"
+    state: present
+
+  # --- Content view publishing ---------------------------------------------
+  - name: "{{ sat_prefix }}Promote Content Views"
+    description: "Promote composite content views to the next lifecycle environment"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/promote_content_views.yml
     inventory: "{{ sat_prefix }}Control"
     execution_environment: "{{ sat_ee_name }}"
     credentials:
       - "{{ sat_prefix }}API"
     job_type: run
     ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/promote_content_views.json.j2', convert_data=False) | from_json }}"
     extra_vars:
-      emergency_content_view: "{{ sat_emergency_content_view }}"
+      content_view_queries:
+        - "composite = true"
+    state: present
+
+  - name: "{{ sat_prefix }}Publish Content Views"
+    description: "Publish a new version of every component and composite content view"
+    organization: "{{ sat_aap_organization }}"
+    project: "{{ sat_prefix }}Content Lifecycle"
+    playbook: playbooks/publish_content_views.yml
+    inventory: "{{ sat_prefix }}Control"
+    execution_environment: "{{ sat_ee_name }}"
+    credentials:
+      - "{{ sat_prefix }}API"
+    job_type: run
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/publish_content_views.json.j2', convert_data=False) | from_json }}"
+    extra_vars:
+      exclude_content_views:
+        - "{{ sat_emergency_content_view }}"
     state: present
 
   # --- Reporting -----------------------------------------------------------
@@ -125,6 +153,4 @@ controller_templates:
     job_slice_count: "{{ sat_update_job_slices }}"
     survey_enabled: true
     survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/update_systems.json.j2', convert_data=False) | from_json }}"
-    extra_vars:
-      reboot: least
     state: present

@@ -10,6 +10,25 @@
       "choices": ["least", "always"],
       "default": "least",
       "required": true
+    },
+    {
+      "question_name": "Patch Group",
+      "question_description": "Which patch group should be updated",
+      "type": "multiplechoice",
+      "variable": "patch_group",
+      "choices": [
+{% for pgroup in sat_patch_groups %}
+        {{ pgroup | to_json }}{{ "," if not loop.last }}
+{% endfor %}
+      ],
+      "required": false
+    },
+    {
+      "question_name": "Host Group",
+      "question_description": "Which host group should be updated",
+      "type": text,
+      "variable": "host_group",
+      "required": false
     }
   ]
 }
