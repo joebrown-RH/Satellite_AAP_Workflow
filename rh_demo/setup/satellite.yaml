@@ -1,22 +1,6 @@
 - name: Configure Satellite Server for Demo
-  hosts: all
+  hosts: localhost
   gather_facts: false
-  vars:
-    lifecycle_environments:
-      - prior: Library
-        name: Dev
-      - prior: Dev
-        name: Test
-      - prior: Test
-        name: QA
-      - prior: QA
-        name: Prod
-    os_versions:
-      - 9
-      - 10
-    repositories:
-      - BaseOS
-      - AppStream
   tasks:
     - name: Create Lifecycle Environments
       redhat.satellite.lifecycle_environment:
@@ -30,6 +14,20 @@
         state: "present"
       loop: "{{ lifecycle_environments }}"
 
+    - name: Enable RHEL 7 Repo Sets
+      redhat.satellite.repository_set:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        label: "{{ item }}"
+        repositories:
+          - releasever: "7Server"
+            basearch: "x86_64"
+      loop:
+        - rhel-7-server-rpms
+
     - name: Enable Repo Sets
       redhat.satellite.repository_set:
         username: "{{ satellite_username | default(omit) }}"
@@ -40,9 +38,23 @@
         label: "rhel-{{ item[0] }}-for-x86_64-{{ item[1] | lower }}-rpms"
         repositories:
           - releasever: "{{ item[0] }}"
-      loop: "{{ os_versions | product(repositories) | list }}"        
+      loop: "{{ os_versions | product(repositories) | list }}"
 
-    - name: Sync repos
+    - name: Sync RHEL 7 repos
+      when: satellite_sync
+      redhat.satellite.repository_sync:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        product: "Red Hat Enterprise Linux Server"
+      async: 3600
+      poll: 0
+      register: rh7_sync_job
+
+    - name: Sync RHEL repos
+      when: satellite_sync
       redhat.satellite.repository_sync:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
@@ -92,6 +104,7 @@
       loop: "{{ os_versions }}"
 
     - name: Sync EPEL repos
+      when: satellite_sync
       redhat.satellite.repository_sync:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
@@ -102,6 +115,28 @@
       async: 3600
       poll: 0
       register: epel_sync_job
+
+    - name: Create Emergency Content View
+      redhat.satellite.content_view:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "cv_Emergency"
+        repositories: []
+    
+    # - name: Create Emergency Content View Errata Filter
+    #   redhat.satellite.content_view_filter:
+    #     username: "{{ satellite_username | default(omit) }}"
+    #     password: "{{ satellite_password | default(omit) }}"
+    #     server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+    #     validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+    #     organization: "{{ satellite_organization | default(omit) }}"
+    #     name: "errata"
+    #     content_view: "cv_Emergency"
+    #     filter_type: erratum
+    #     inclusion: true
 
     - name: Create RHEL Content View
       redhat.satellite.content_view:
@@ -147,3 +182,97 @@
             latest: true
           - content_view: cv_EPEL
             latest: true
+
+    - name: Publish and Promote ccv_RHEL_EPEL
+      when: satellite_publish_promote
+      redhat.satellite.content_view_version:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        content_view: "ccv_RHEL_EPEL"
+        lifecycle_environments: "{{ lifecycle_environments | json_query('[].name') }}"
+
+    - name: "Create host collections for patch groups"
+      redhat.satellite.host_collection:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "Patch Group {{ item }}"
+        description: "Patch group for stage {{ item }}"
+        state: present
+      loop:
+        - 1
+        - 2
+        - 3
+
+    - name: Create Host Groups
+      redhat.satellite.hostgroup:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        name: "{{ item.name }}"
+        state: present
+        lifecycle_environment: "{{ item.lifecycle | default('Prod')}}"
+        content_view: "ccv_RHEL_EPEL"
+      loop:
+        - name: Satellite
+        - name: Satellite/Capsules
+        - name: General
+        - name: General/Department1
+        - name: General/Department1/Department1-Dev
+          lifecycle: Dev
+        - name: General/Department1/Department1-Test
+          lifecycle: Test
+        - name: General/Department1/Department1-QA
+          lifecycle: QA
+        - name: General/Department1/Department1-Prod
+          lifecycle: Prod
+
+    - name: Assign Nodes to Host Groups
+      redhat.satellite.host:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        name: "{{ item.name }}"
+        hostgroup: "{{ item.group }}"
+
+        state: present
+      loop:
+        - name: node1.example.com
+          group: General/Department1/Department1-Prod
+          collection: Patch Group 1
+        - name: node2.example.com
+          group: General/Department1/Department1-Prod
+          collection: Patch Group 2
+        - name: node3.example.com
+          group: General/Department1/Department1-Prod
+          collection: Patch Group 3
+
+    - name: Wait for RHEL Sync Jobs
+      when: satellite_sync
+      ansible.builtin.async_status:
+        jid: "{{ rh_sync_job.ansible_job_id }}"
+      register: job_result
+      until: job_result.finished
+      retries: 30
+      delay: 10
+    
+    - name: Wait for EPEL Sync Jobs
+      when: satellite_sync
+      ansible.builtin.async_status:
+        jid: "{{ epel_sync_job.ansible_job_id }}"
+      register: job_result
+      until: job_result.finished
+      retries: 30
+      delay: 10
+

@@ -1,0 +1,331 @@
+- name: Setup AAP
+  hosts: localhost
+  gather_facts: false
+  environment:
+    CONTROLLER_OPTIONAL_API_URLPATTERN_PREFIX: /api
+  vars:
+    aap_inventory: "Satellite"
+  tasks:
+    - name: Create Project
+      ansible.controller.project:
+        controller_host: "{{ aap_server_url | default(omit) }}"
+        controller_username: "{{ aap_username | default(omit) }}"
+        controller_password: "{{ aap_password | default(omit) }}"
+        organization: "{{ aap_organization | default(omit) }}"
+        validate_certs: "{{ aap_validate_certs | default(omit) }}"
+
+        name: "Satellite Jobs"
+        description: "Jobs for controlling Satellite"
+        scm_update_on_launch: true
+        scm_update_cache_timeout: 60
+        state: present
+        scm_branch: demo
+        scm_type: git
+        scm_url: https://github.com/joebrown-RH/Satellite_AAP_Workflow.git
+
+    - name: Create Satellite Credential type
+      ansible.controller.credential_type:
+        controller_host: "{{ aap_server_url | default(omit) }}"
+        controller_username: "{{ aap_username | default(omit) }}"
+        controller_password: "{{ aap_password | default(omit) }}"
+        validate_certs: "{{ aap_validate_certs | default(omit) }}"
+        name: Satellite Credential
+        description: Credential type for Satellite
+        kind: cloud
+        inputs:
+          fields:
+            - type: string
+              id: username
+              label: Username
+            - type: string
+              id: password
+              label: Password
+              secret: true
+            - type: string
+              id: host
+              label: host
+          required:
+            - username
+            - password
+            - host
+        injectors: 
+          extra_vars:
+            satellite_username: "{{ '{{' }} username {{ '}}' }}"
+            satellite_password: "{{ '{{' }} password {{ '}}' }}"
+            satellite_server_url: "{{ '{{' }} host {{ '}}' }}"
+        state: present
+
+    - name: Create Satellite Inventory credential
+      ansible.controller.credential:
+        controller_host: "{{ aap_server_url | default(omit) }}"
+        controller_username: "{{ aap_username | default(omit) }}"
+        controller_password: "{{ aap_password | default(omit) }}"
+        organization: "{{ aap_organization | default(omit) }}"
+        validate_certs: "{{ aap_validate_certs | default(omit) }}"
+
+        name: Satellite Inventory Credential
+        description: Credential for dynamic inventory from Satellite
+        credential_type: Red Hat Satellite 6
+        state: present
+        inputs:
+          host: "{{ satellite_server_url }}"
+          username: "{{ satellite_username }}"
+          password: "{{ satellite_password }}"
+
+    - name: Create Satellite credential
+      ansible.controller.credential:
+        controller_host: "{{ aap_server_url | default(omit) }}"
+        controller_username: "{{ aap_username | default(omit) }}"
+        controller_password: "{{ aap_password | default(omit) }}"
+        organization: "{{ aap_organization | default(omit) }}"
+        validate_certs: "{{ aap_validate_certs | default(omit) }}"
+
+        name: Satellite Access
+        description: Credential for Satellite Access
+        credential_type: Satellite Credential
+        state: present
+        inputs:
+          host: "{{ satellite_server_url }}"
+          username: "{{ satellite_username }}"
+          password: "{{ satellite_password }}"
+
+    - name: Create Inventory
+      ansible.controller.inventory:
+        controller_host: "{{ aap_server_url | default(omit) }}"
+        controller_username: "{{ aap_username | default(omit) }}"
+        controller_password: "{{ aap_password | default(omit) }}"
+        organization: "{{ aap_organization | default(omit) }}"
+        validate_certs: "{{ aap_validate_certs | default(omit) }}"
+
+        name: "{{ aap_inventory }}"
+        description: "Inventory from Satellite"
+        state: present
+    
+    - name: Add Dynamic Source to Inventory
+      ansible.controller.inventory_source:
+        controller_host: "{{ aap_server_url | default(omit) }}"
+        controller_username: "{{ aap_username | default(omit) }}"
+        controller_password: "{{ aap_password | default(omit) }}"
+        organization: "{{ aap_organization | default(omit) }}"
+        validate_certs: "{{ aap_validate_certs | default(omit) }}"
+
+        name: "{{ aap_inventory }}"
+        inventory: "{{ aap_inventory }}"
+        description: Inventory from Satellite
+        overwrite: true
+        overwrite_vars: true
+        source: satellite6
+        update_on_launch: true
+        credential: "Satellite Inventory Credential"
+        source_vars:
+          want_hostcollections: true
+      
+    - name: Create Job Templates
+      ansible.controller.job_template:
+        controller_host: "{{ aap_server_url | default(omit) }}"
+        controller_username: "{{ aap_username | default(omit) }}"
+        controller_password: "{{ aap_password | default(omit) }}"
+        organization: "{{ aap_organization | default(omit) }}"
+        validate_certs: "{{ aap_validate_certs | default(omit) }}"
+
+        name: "{{aap_template_prefix }}/{{ item.name }}"
+        job_type: "run"
+        inventory: "{{ aap_inventory }}"
+        project: "Satellite Jobs"
+        playbook: "{{ item.playbook }}"
+        state: "present"
+        credentials: "{{ item.credentials | default(omit) }}"
+        extra_vars: "{{ item.extra_vars | default(omit) }}"
+        execution_environment: auto_satellite workshop execution environment
+        survey_enabled: "{{ item.survey_enabled | default(omit) }}"
+        survey_spec: "{{ item.survey_spec | default(omit) }}"
+      loop:
+        - name: Publish
+          playbook: publish/publish.yaml
+          credentials:
+            - Satellite Access
+          extra_vars:
+            exclude_content_views:
+              - cv_Emergency
+            satellite_organization: "{{ satellite_organization }}"
+
+        - name: Clean Emergency CV
+          playbook: clean_emergency/clean_emergency.yaml
+          credentials:
+            - Satellite Access
+          extra_vars:
+            satellite_organization: "{{ satellite_organization }}"
+            emergency_content_view: cv_Emergency
+
+        - name: Emergency Publish
+          playbook: emergency/publish.yaml
+          credentials:
+            - Satellite Access
+          extra_vars:
+            satellite_organization: "{{ satellite_organization }}"
+            repositories:
+              - product: Red Hat Enterprise Linux for x86_64
+                query: name ~ "*AppStream RPMs*" or name ~ "*BaseOS RPMs*"
+            emergency_content_view: cv_Emergency
+            composite_content_view_queries:
+              - composite = true and name !=  "ccv_SAP"
+
+        - name: Promote Content View
+          playbook: promote_cv/promote.yaml
+          credentials:
+            - Satellite Access
+          extra_vars:
+            content_view_queries:
+              - composite = true
+            lifecycle_environment: Dev
+            satellite_organization: "{{ satellite_organization }}"
+
+        - name: Errata Report
+          playbook: report_errata/errata_installable.yaml
+          credentials:
+            - Satellite Access
+          survey_enabled: true
+          survey_spec:
+            name: Survey
+            description: Survey
+            spec:
+              - question_name: "Host Query"
+                type: text
+                question_description: "Which hosts should the report include"
+                variable: "host_query"
+                required: false
+
+        - name: Update Systems
+          playbook: update_systems/update_systems.yaml
+          credentials:
+            - Workshop Credential
+          survey_enabled: true
+          survey_spec:
+            name: Survey
+            description: Survey
+            spec:
+              - question_name: "Patch Group"
+                type: "multiplechoice"
+                question_description: "Which patch group to update"
+                variable: "patch_group"
+                required: true
+                default: "1"
+                choices:
+                  - "1"
+                  - "2"
+                  - "3"
+
+              - question_name: "Host Group"
+                type: text
+                question_description: "Which host group to update"
+                variable: "host_group"
+                required: true
+                default: "None"
+      
+    - name: Create Workflow Job Templates
+      ansible.controller.workflow_job_template:
+        controller_host: "{{ aap_server_url | default(omit) }}"
+        controller_username: "{{ aap_username | default(omit) }}"
+        controller_password: "{{ aap_password | default(omit) }}"
+        organization: "{{ aap_organization | default(omit) }}"
+        validate_certs: "{{ aap_validate_certs | default(omit) }}"
+
+        name: "{{aap_template_prefix }}/{{ item.name }}"
+        inventory: "{{ aap_inventory }}"
+        workflow_nodes: "{{ lookup('ansible.builtin.template', '../workflow_nodes/' ~ item.nodes ) | from_yaml }}"
+        survey_enabled: "{{ item.survey_enabled | default(omit) }}"
+        survey_spec: "{{ item.survey_spec | default(omit) }}"
+      loop:
+        - name: Patch Systems
+          nodes: patch_systems.yaml.j2
+          survey_enabled: true
+          survey_spec:
+            name: Survey
+            description: Survey
+            spec:
+              - question_name: "Patch Group"
+                type: "multiplechoice"
+                question_description: "Which patch group to update"
+                variable: "patch_group"
+                required: true
+                default: "1"
+                choices:
+                  - "1"
+                  - "2"
+                  - "3"
+
+              - question_name: "Host Group"
+                type: text
+                question_description: "Which host group to update"
+                variable: "host_group"
+                required: true
+                default: "None"
+
+        - name: Patch Cycle
+          nodes: patch_cycle.yaml.j2
+          survey_enabled: true
+          survey_spec:
+            name: Survey
+            description: Survey
+            spec:
+              - question_name: "Lifecycle Step"
+                type: "multiplechoice"
+                question_description: "Lifecycle step to promote to and patch systems"
+                variable: lifecycle_environment
+                required: true
+                default: "{{ lifecycle_environments | json_query('[0].name') }}"
+                choices: "{{ lifecycle_environments | json_query('[].name') }}"
+
+              - question_name: "Patch Group"
+                type: "multiplechoice"
+                question_description: "Which patch group to update"
+                variable: "patch_group"
+                required: true
+                default: "1"
+                choices:
+                  - "1"
+                  - "2"
+                  - "3"
+
+              - question_name: "Host Group"
+                type: text
+                question_description: "Which host group to update"
+                variable: "host_group"
+                required: true
+                default: "None"
+
+        - name: Publish Content Views
+          nodes: publish.yaml.j2
+        
+        - name: Emergency Publish
+          nodes: emergency_publish.yaml.j2
+          survey_enabled: true
+          survey_spec:
+            name: Survey
+            description: Survey
+            spec:
+              - question_name: "Errata"
+                type: text
+                question_description: "Which errata to deploy"
+                variable: "errata_ids"
+                required: true
+                default: "[]"
+
+              - question_name: "Patch Group"
+                type: "multiplechoice"
+                question_description: "Which patch group to update"
+                variable: "patch_group"
+                required: true
+                default: "1"
+                choices:
+                  - "1"
+                  - "2"
+                  - "3"
+
+              - question_name: "Host Group"
+                type: text
+                question_description: "Which host group to update"
+                variable: "host_group"
+                required: true
+                default: "None"
+        

@@ -1,0 +1,55 @@
+- identifier: "Before Errata Report"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{aap_template_prefix }}/Errata Report"
+    type: job_template
+  related:
+    success_nodes:
+      - identifier: "Update Systems - PG1"
+    failure_nodes: []
+- identifier: "Update Systems - PG1"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{aap_template_prefix }}/Update Systems"
+    type: job_template
+  extra_data:
+    patch_group: "1"
+  related:
+    success_nodes:
+      - identifier: "Update Systems - PG2"
+    failure_nodes: []
+- identifier: "Update Systems - PG2"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{aap_template_prefix }}/Update Systems"
+    type: job_template
+  extra_data:
+    patch_group: "2"
+  related:
+    success_nodes:
+      - identifier: "Update Systems - PG3"
+    failure_nodes: []
+- identifier: "Update Systems - PG3"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{aap_template_prefix }}/Update Systems"
+    type: job_template
+  extra_data:
+    patch_group: "3"
+  related:
+    success_nodes:
+      - identifier: "After Errata Report"
+    failure_nodes: []
+- identifier: "After Errata Report"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{aap_template_prefix }}/Errata Report"
+    type: job_template
+  related:
+    success_nodes: []
+    failure_nodes: []

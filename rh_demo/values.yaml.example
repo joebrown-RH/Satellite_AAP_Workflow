@@ -1,0 +1,16 @@
+satellite_username: administrator
+satellite_password: changeme
+satellite_server_url: https://satellite.example.com # No trailing slash
+satellite_validate_certs: false
+satellite_organization: Default Organization
+satellite_sync: true # Can be disable for repeated runs
+satellite_publish_promote: true # Can be disable for repeated runs
+
+
+
+aap_username: administrator
+aap_password: changeme
+aap_server_url: https://controller.example.com/
+aap_validate_certs: false
+aap_organization: Default
+aap_template_prefix: "~Satellite"

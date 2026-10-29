@@ -1,25 +1,20 @@
 - identifier: "Publish Emergency CV"
   unified_job_template:
-    name: "Satellite/Emergency Publish"
+    name: "{{aap_template_prefix }}/Emergency Publish"
     inventory:
       organization:
         name: Default
     type: job_template
   related:
     success_nodes:
-      - identifier: "Publish CVs"
+      - identifier: "Patch Systems"
     failure_nodes: []
-    always_nodes: []
-    credentials: []
-- identifier: "Report Errata"
+- identifier: "Patch Systems"
   unified_job_template:
     organization:
       name: Default
-    name: "Satellite/Publish"
-    type: job_template
-  credentials: []
+    name: "{{aap_template_prefix }}/Patch Systems"
+    type: workflow_job_template
   related:
     success_nodes: []
     failure_nodes: []
-    always_nodes: []
-    credentials: []

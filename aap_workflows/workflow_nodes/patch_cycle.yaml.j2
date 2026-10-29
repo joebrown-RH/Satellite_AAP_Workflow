@@ -1,0 +1,20 @@
+- identifier: "Promote CV"
+  unified_job_template:
+    name: "{{aap_template_prefix }}/Promote Content View"
+    inventory:
+      organization:
+        name: Default
+    type: job_template
+  related:
+    success_nodes:
+      - identifier: "Patch Systems"
+    failure_nodes: []
+- identifier: "Patch Systems"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{aap_template_prefix }}/Patch Systems"
+    type: workflow_job_template
+  related:
+    success_nodes: []
+    failure_nodes: []

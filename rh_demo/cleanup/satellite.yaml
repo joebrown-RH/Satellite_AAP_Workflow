@@ -1,5 +1,5 @@
 - name: Cleanup existing Satellite setup
-  hosts: all
+  hosts: localhost
   gather_facts: false
   tasks:
     - name: Get Organization Info
@@ -167,4 +167,17 @@
         state: disabled
         all_repositories: true
       loop: "{{ repo_sets.repository_sets | json_query('[].{product: product.name, name: name, repositories: repositories}') }}"
+
+    # - name: Disable Satellite 6 Client 2
+    #   redhat.satellite.repository_set:
+    #     username: "{{ satellite_username | default(omit) }}"
+    #     password: "{{ satellite_password | default(omit) }}"
+    #     server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+    #     validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+    #     organization: "{{ satellite_organization | default(omit) }}"
+    #     name: "Red Hat Satellite 6 Client 2 for RHEL 8 x86_64 RPMs"
+    #     product: "Red Hat Enterprise Linux for x86_64"
+    #     state: disabled
+    #     all_repositories: true
+      
         
