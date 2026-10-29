@@ -62,8 +62,6 @@
         body:
           name: errata
           type: erratum_id
-          original_packages: false
-          original_module_streams: false
         force_basic_auth: true
         url_username: "{{ satellite_username | default(omit) }}"
         url_password: "{{ satellite_password | default(omit) }}"
