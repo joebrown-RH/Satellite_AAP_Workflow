@@ -126,17 +126,17 @@
         name: "cv_Emergency"
         repositories: []
     
-    # - name: Create Emergency Content View Errata Filter
-    #   redhat.satellite.content_view_filter:
-    #     username: "{{ satellite_username | default(omit) }}"
-    #     password: "{{ satellite_password | default(omit) }}"
-    #     server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
-    #     validate_certs: "{{ satellite_validate_certs | default(omit) }}"
-    #     organization: "{{ satellite_organization | default(omit) }}"
-    #     name: "errata"
-    #     content_view: "cv_Emergency"
-    #     filter_type: erratum
-    #     inclusion: true
+    - name: Create Emergency Content View Errata Filter
+      redhat.satellite.content_view_filter:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "errata"
+        content_view: "cv_Emergency"
+        filter_type: erratum
+        inclusion: true
 
     - name: Create RHEL Content View
       redhat.satellite.content_view:
