@@ -1,4 +1,4 @@
-## Publishing
+## Publishing (AAP Job: Publish Content Views)
 ```mermaid
 graph LR
 
@@ -9,7 +9,7 @@ publish         -->|Success| Exit
 publish         -->|Failure| alert
 ```
 
-## Update Systems
+## Update Systems (AAP Job: Patch Cycle)
 ```mermaid
 graph LR
 
@@ -24,7 +24,7 @@ report_errata2 -->|Success| Exit
 report_errata2 -->|Failure| alert
 ```
 
-## Emergency Publish
+## Emergency Publish (AAP Job: Emergency Publish)
 ```mermaid
 graph LR
 
