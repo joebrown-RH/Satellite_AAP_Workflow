@@ -32,7 +32,6 @@
         solve_dependencies: false
 
     - name: "Check if Errata Filter exists"
-      ignore_errors: true
       redhat.satellite.content_view_filter_info:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
@@ -42,6 +41,10 @@
         content_view: "{{ emergency_content_view | default(omit) }}"
         name: "errata"
       register: errata_filter
+
+    - name: debug
+      debug:
+        var: errata_filter
 
     - name: Get Content View Information
       when: errata_filter is failed
