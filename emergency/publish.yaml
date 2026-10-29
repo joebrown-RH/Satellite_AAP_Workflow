@@ -31,18 +31,49 @@
         repositories: "{{ repo_list.results | json_query('[0].repositories[].{ name: name, product: product.name }') }}"
         solve_dependencies: false
 
-    - name: Ensure Errata Filter exists
-      redhat.satellite.content_view_filter:
+    - name: "Check if Errata Filter exists"
+      ignore_errors: true
+      redhat.satellite.content_view_filter_info:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
         server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
         validate_certs: "{{ satellite_validate_certs | default(omit) }}"
         organization: "{{ satellite_organization | default(omit) }}"
-
-        name: "errata"
         content_view: "{{ emergency_content_view | default(omit) }}"
-        filter_type: erratum
-        inclusion: true
+        name: "errata"
+      register: errata_filter
+
+    - name: Get Content View Information
+      when: errata_filter is failed
+      redhat.satellite.content_view_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+        name: "{{ emergency_content_view | default(omit) }}"
+      register: emergency_cv_info
+
+    - name: debug
+      when: errata_filter is failed
+      debug:
+        var: emergency_cv_info
+
+    - name: Create Errata Filter
+      when: errata_filter is failed
+      ansible.builtin.uri:
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/content_views/{{ emergency_cv_info.id }}/filters"
+        method: POST
+        body_format: json
+        body:
+          name: errata
+          type: erratum_id
+          original_packages: false
+          original_module_streams: false
+        force_basic_auth: true
+        url_username: "{{ satellite_username | default(omit) }}"
+        url_password: "{{ satellite_password | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
 
     - name: "Include errata"
       redhat.satellite.content_view_filter_rule:
