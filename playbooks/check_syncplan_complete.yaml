@@ -1,0 +1,22 @@
+---
+# Talks to the Satellite API over HTTPS; does not need to run ON the Satellite
+# server. Runs once against a single target to check if the Sync Plan is complete
+- name: Wait for the Sync Plan is complete
+  hosts: "{{ satellite_target | default('localhost') }}"
+  connection: local
+  tasks:
+    - name: Get all sync plan tasks
+      redhat.satellite.resource_info:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default('https://' + inventory_hostname) | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        resource: foreman_tasks
+        search: "label = Actions::Katello::Repository::Sync and state = running"
+      register: sync_tasks
+    
+    - name: Fail if Sync Tasks are still running
+      ansible.builtin.assert:
+        that:
+          - "(sync_tasks.resources | length) == 0"
+        fail_msg: "There are still {{ sync_tasks.resources | length }} sync tasks running."

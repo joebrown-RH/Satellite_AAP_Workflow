@@ -1,0 +1,22 @@
+---
+# Errata are per-host, so this play DOES fan out across the client inventory -
+# but every task is a local process, so it runs locally in the execution
+# environment and never opens an SSH session to the clients themselves.
+# Use the same inventory and `limit` as update_systems.yml so the applied
+# errata are for those clients.
+- name: Check Errata
+  hosts: "{{ host_query | default('foreman_' ~ (host_group | lower | replace('/', '_') | replace('-', '_'))) }}"
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Find Errata that matches criteria
+      ansible.builtin.set_stats:
+        data:
+          errata_ids: "{{ available_errata[host | default(inventory_hostname)] | json_query(errata_filter ~ '.errata_id') }}"
+        per_host: false
+        aggregate: true
+
+    - name: Print Errata IDs to be installed
+      ansible.builtin.debug:
+        msg: "{{ available_errata[host | default(inventory_hostname)] | json_query(errata_filter ~ '.errata_id') }}"

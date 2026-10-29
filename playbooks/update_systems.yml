@@ -4,7 +4,8 @@
 # foreman_search) to target a host group / patch group - see
 # docs/satellite/patching.md.
 - name: Update RHEL Systems
-  hosts: "{{ host_query | default('foreman_' ~ (host_group | lower | replace('/', '_') | replace('-', '_')) ~':&foreman_hostcollection_patch_group_' ~ patch_group) }}"  gather_facts: false
+  hosts: "{{ host_query | default('foreman_' ~ (host_group | lower | replace('/', '_') | replace('-', '_')) ~':&foreman_hostcollection_patch_group_' ~ patch_group) }}"
+  gather_facts: false
 
   tasks:
     - name: Update all packages
