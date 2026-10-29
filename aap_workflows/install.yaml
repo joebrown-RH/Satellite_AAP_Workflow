@@ -169,6 +169,35 @@
             emergency_content_view: cv_Emergency
             composite_content_view_queries:
               - composite = true and name !=  "ccv_SAP"
+          survey_enabled: true
+          survey_spec:
+            name: Survey
+            description: Survey
+            spec:
+              - question_name: "Errata"
+                type: text
+                question_description: "Which errata to deploy"
+                variable: "errata_ids"
+                required: true
+                default: "[]"
+
+              - question_name: "Patch Group"
+                type: "multiplechoice"
+                question_description: "Which patch group to update"
+                variable: "patch_group"
+                required: true
+                default: "1"
+                choices:
+                  - "1"
+                  - "2"
+                  - "3"
+
+              - question_name: "Host Group"
+                type: text
+                question_description: "Which host group to update"
+                variable: "host_group"
+                required: true
+                default: "None"
 
         - name: Promote Content View
           playbook: promote_cv/promote.yaml
@@ -232,7 +261,7 @@
 
         name: "{{aap_template_prefix }}/{{ item.name }}"
         inventory: "{{ aap_inventory }}"
-        workflow_nodes: "{{ lookup('ansible.builtin.template', '../workflow_nodes/' ~ item.nodes ) | from_yaml }}"
+        workflow_nodes: "{{ lookup('ansible.builtin.template', 'workflow_nodes/' ~ item.nodes ) | from_yaml }}"
         survey_enabled: "{{ item.survey_enabled | default(omit) }}"
         survey_spec: "{{ item.survey_spec | default(omit) }}"
       loop:

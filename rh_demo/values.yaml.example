@@ -6,7 +6,22 @@ satellite_organization: Default Organization
 satellite_sync: true # Can be disable for repeated runs
 satellite_publish_promote: true # Can be disable for repeated runs
 
-
+# TODO: Prefix with satellite_
+lifecycle_environments:
+  - prior: Library
+    name: Dev
+  - prior: Dev
+    name: Test
+  - prior: Test
+    name: QA
+  - prior: QA
+    name: Prod
+os_versions:
+  - 9
+  - 10
+repositories:
+  - BaseOS
+  - AppStream
 
 aap_username: administrator
 aap_password: changeme
