@@ -62,6 +62,7 @@
         body:
           name: errata
           type: erratum_id
+          inclusion: true
         status_code:
           - 200
           - 201
