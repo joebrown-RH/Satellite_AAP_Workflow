@@ -59,8 +59,10 @@
         content_view: "{{ emergency_content_view }}"
         content_view_filter: "errata"
       register: errata_rules
+      ignore_errors: true
 
     - name: Remove old Emergency Content View Rules
+      when: errata_rules is not failed
       redhat.satellite.content_view_filter_rule:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"

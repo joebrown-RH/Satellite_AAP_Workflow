@@ -5,7 +5,7 @@
 # Use the same inventory and `limit` as update_systems.yml so the before/after
 # reports cover exactly the hosts being patched.
 - name: Get Installable Errata
-  hosts: all
+  hosts: "{{ host_query | default('foreman_' ~ (host_group | lower | replace('/', '_') | replace('-', '_'))) }}"
   connection: local
   gather_facts: false
 
@@ -22,7 +22,7 @@
       register: host_info
 
     - name: Get Lifecycle Environment
-      when: lifecycle_prior | default(false) | bool
+      when: lifecycle_environment | default(false) | bool
       redhat.satellite.lifecycle_environment:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
@@ -34,11 +34,12 @@
       register: lifecycle_environment_info
 
     - name: Store previous Lifecycle Environment
-      when: lifecycle_prior | default(false) | bool
+      when: lifecycle_environment | default(false) | bool
       set_fact:
         previous_lifecycle_environment: "{{ (lifecycle_environment_info.entity.lifecycle_environments | first).prior.name }}"
 
     - name: Get Host Errata
+      when: host_info.host.content_view.name | length > 0 # Ignore hosts without content
       redhat.satellite.host_errata_info:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
@@ -52,5 +53,14 @@
       register: host_errata_info
 
     - name: Debug
+      when: host_info.host.content_view # Ignore hosts without content
       debug:
         var: host_errata_info.host_errata
+    
+    - name: Store for future workflow steps
+      when: host_info.host.content_view # Ignore hosts without content
+      ansible.builtin.set_stats:
+        data:
+          available_errata: "{ '{{ host | default(inventory_hostname) }}': {{ host_errata_info.host_errata }} }"
+        per_host: false
+        aggregate: true

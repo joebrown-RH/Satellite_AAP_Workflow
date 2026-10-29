@@ -64,3 +64,12 @@
       register: async_poll_results
       until: async_poll_results.finished
       retries: 3600
+
+    - name: Ensure the publish succeeded
+      ansible.builtin.assert:
+        that:
+          - async_result is success
+        failed_msg: Not all Content Views published successfully
+      loop: "{{ async_poll_results }}"
+      loop_control:
+        loop_var: "async_result"

@@ -1,8 +1,7 @@
 ---
 # Talks to the Satellite API over HTTPS; does not need to run ON the Satellite
 # server. Runs once against a single target so content views are published
-# exactly once - pointing this play at a client inventory would publish every
-# content view once per client host.
+# exactly once.
 - name: Publish Content Views
   hosts: "{{ satellite_target | default('localhost') }}"
   connection: local
@@ -47,7 +46,15 @@
       until: async_poll_results.finished
       retries: 3600
 
-    # Check if async tasks passed
+    - name: Ensure the publish succeeded
+      ansible.builtin.assert:
+        that:
+          - async_poll_results is success
+        failed_msg: Not all Content Views published successfully
+      loop: "{{ async_results.results }}"
+      loop_control:
+        loop_var: "async_result_item"
+      register: async_poll_results
 
     - name: Query for Composite Content Views
       redhat.satellite.content_view_info:
@@ -87,4 +94,12 @@
       until: async_poll_results.finished
       retries: 3600
 
-    # Check if async tasks passed
+    - name: Ensure the publish succeeded
+      ansible.builtin.assert:
+        that:
+          - async_poll_results is success
+        failed_msg: Not all Composite Content Views published successfully
+      loop: "{{ async_results.results }}"
+      loop_control:
+        loop_var: "async_result_item"
+      register: async_poll_results
