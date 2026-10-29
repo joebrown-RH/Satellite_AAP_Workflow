@@ -41,7 +41,7 @@
 
         name: "errata"
         content_view: "{{ emergency_content_view | default(omit) }}"
-        filter_type: erratum
+        filter_type: erratum_id
         inclusion: true
 
     - name: "Include errata"
