@@ -42,10 +42,6 @@
         name: "errata"
       register: errata_filter
 
-    - name: debug
-      debug:
-        var: errata_filter
-
     - name: Get Content View Information
       when: errata_filter.content_view_filter is none
       redhat.satellite.content_view_info:
@@ -57,15 +53,10 @@
         name: "{{ emergency_content_view | default(omit) }}"
       register: emergency_cv_info
 
-    - name: debug
-      when: errata_filter.content_view_filter is none
-      debug:
-        var: emergency_cv_info
-
     - name: Create Errata Filter
       when: errata_filter.content_view_filter is none
       ansible.builtin.uri:
-        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/content_views/{{ emergency_cv_info.id }}/filters"
+        url: "{{ satellite_server_url | default('https://' + inventory_hostname) }}/katello/api/content_views/{{ emergency_cv_info.content_view.id }}/filters"
         method: POST
         body_format: json
         body:
