@@ -83,7 +83,7 @@
         content_view_filter: "errata"
         state: present
         errata_id: "{{ errata_id }}"
-      loop: "{{ errata_ids }}"
+      loop: "{{ errata_ids | sort | unique | list }}"
       loop_control:
         loop_var: "errata_id"
 

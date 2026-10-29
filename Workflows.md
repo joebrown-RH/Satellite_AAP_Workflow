@@ -38,3 +38,20 @@ update_systems -->|Failure| alert
 report_errata2 -->|Success| Exit
 report_errata2 -->|Failure| alert
 ```
+
+## Automatic Emergency CVE processing (AAP Job: Process Errata)
+```mermaid
+graph LR
+
+Start[Start]      -->          sync_complete[auto_emergency/check_sync_complete.yaml]
+sync_complete     -->|Success| report_errata[report_errata/errata_installable.yaml]
+sync_complete     -->|Failure| alert
+report_errata     -->|Success| filter_errata[auto_emergency/filter_errata.yaml]
+report_errata     -->|Failure| alert
+filter_errata     -->|Success| publish_emergency[emergency/publish.yaml]
+filter_errata     -->|Failure| alert
+publish_emergency -->|Success| update_systems[update_systems/update_systems.yaml]
+publish_emergency -->|Failure| alert
+update_systems    -->|Success| Exit
+update_systems    -->|Failure| alert
+```

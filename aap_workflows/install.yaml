@@ -19,7 +19,7 @@
         scm_update_on_launch: true
         scm_update_cache_timeout: 60
         state: present
-        scm_branch: demo
+        scm_branch: auto_patch
         scm_type: git
         scm_url: https://github.com/joebrown-RH/Satellite_AAP_Workflow.git
 
@@ -213,6 +213,8 @@
           playbook: report_errata/errata_installable.yaml
           credentials:
             - Satellite Access
+          extra_vars:
+            satellite_organization: "{{ satellite_organization }}"
           survey_enabled: true
           survey_spec:
             name: Survey
@@ -223,6 +225,29 @@
                 question_description: "Which hosts should the report include"
                 variable: "host_query"
                 required: false
+              
+              - question_name: "Patch Group"
+                type: "multiplechoice"
+                question_description: "Which patch group to update"
+                variable: "patch_group"
+                required: false
+                choices:
+                  - "1"
+                  - "2"
+                  - "3"
+
+              - question_name: "Host Group"
+                type: text
+                question_description: "Which host group to update"
+                variable: "host_group"
+                required: false
+
+              - question_name: "Lifecycle Environment"
+                type: multiplechoice
+                question_description: "Which Lifecycle Environment to check against"
+                variable: "lifecycle_environment"
+                required: false
+                choices: "{{ ['Library'] + (lifecycle_environments | json_query('[].name')) }}"
 
         - name: Update Systems
           playbook: update_systems/update_systems.yaml
@@ -250,6 +275,27 @@
                 variable: "host_group"
                 required: true
                 default: "None"
+
+        - name: Sync Complete
+          playbook: auto_emergency/check_sync_complete.yaml
+          credentials:
+            - Satellite Access
+
+        - name: Filter Errata
+          playbook: auto_emergency/filter_errata.yaml
+          credentials:
+            - Satellite Access 
+          survey_enabled: true
+          survey_spec:
+            name: Survey
+            description: Survey
+            spec:
+              - question_name: "Errata Filter"
+                type: "text"
+                question_description: "JSON Query to determine which errata should be immediately processed"
+                variable: "errata_filter"
+                required: true
+                default: "[?severity==`Critical`]"
       
     - name: Create Workflow Job Templates
       ansible.controller.workflow_job_template:
@@ -357,4 +403,8 @@
                 variable: "host_group"
                 required: true
                 default: "None"
-        
+
+        - name: Process Errata
+          nodes: auto_emergency.yaml.j2
+          # extra_vars:
+          #   errata_filter: 

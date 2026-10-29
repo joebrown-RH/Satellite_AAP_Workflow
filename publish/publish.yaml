@@ -43,9 +43,10 @@
       retries: 3600
 
     - name: Fail is publish failed
-      ansible.builtin.fail:
-        msg: Not all Content View publishes completed successfully
-      when: async_poll_results is failed
+      ansible.builtin.assert:
+        that:
+          - async_poll_results is success
+        failed_msg: Not all Content View publishes completed successfully
       loop: "{{ async_results.results }}"
       loop_control:
         loop_var: "async_result_item"

@@ -1,0 +1,45 @@
+- identifier: "Check Sync is Complete"
+  unified_job_template:
+    name: "{{aap_template_prefix }}/Sync Complete"
+    inventory:
+      organization:
+        name: Default
+    type: job_template
+  related:
+    success_nodes:
+      - identifier: "Get Available Errata"
+    failure_nodes: []
+- identifier: "Get Available Errata"
+  unified_job_template:
+    name: "{{aap_template_prefix }}/Errata Report"
+    inventory:
+      organization:
+        name: Default
+    type: job_template
+  extra_data:
+    host_query: all
+    host_group: ""
+    lifecycle_environment: Library
+  related:
+    success_nodes:
+      - identifier: "Filter Available Errata"
+    failure_nodes: []
+- identifier: "Filter Available Errata"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{aap_template_prefix }}/Filter Errata"
+    type: job_template
+  related:
+    success_nodes:
+      - identifier: "Publish Emergency CV"
+    failure_nodes: []
+- identifier: "Publish Emergency CV"
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{aap_template_prefix }}/Emergency Publish"
+    type: job_template
+  related:
+    success_nodes: []
+    failure_nodes: []
