@@ -65,11 +65,11 @@
       until: async_poll_results.finished
       retries: 3600
 
-    - name: Ensure the publish succeeded
+    - name: Ensure the promote succeeded
       ansible.builtin.assert:
         that:
-          - async_result is success
-        failed_msg: Not all Content Views published successfully
-      loop: "{{ async_poll_results }}"
+          - async_result_item is success
+        fail_msg: Not all Compsite Content Views promoted successfully
+      loop: "{{ async_poll_results.results }}"
       loop_control:
-        loop_var: "async_result"
+        loop_var: "async_result_item"
