@@ -46,6 +46,14 @@
       until: async_poll_results.finished
       retries: 3600
 
+    - name: debug
+      debug:
+        var: async_results.results
+
+    - name: debug2
+      debug:
+        var: async_poll_results
+
     - name: Ensure the publish succeeded
       ansible.builtin.assert:
         that:
