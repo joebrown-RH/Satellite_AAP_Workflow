@@ -49,12 +49,11 @@
     - name: Ensure the publish succeeded
       ansible.builtin.assert:
         that:
-          - async_poll_results is success
+          - async_result_item is success
         failed_msg: Not all Content Views published successfully
-      loop: "{{ async_results.results }}"
+      loop: "{{ async_poll_results.results }}"
       loop_control:
         loop_var: "async_result_item"
-      register: async_poll_results
 
     - name: Query for Composite Content Views
       redhat.satellite.content_view_info:
@@ -97,9 +96,8 @@
     - name: Ensure the publish succeeded
       ansible.builtin.assert:
         that:
-          - async_poll_results is success
-        failed_msg: Not all Composite Content Views published successfully
-      loop: "{{ async_results.results }}"
+          - async_result_item is success
+        failed_msg: Not all Compsite Content Views published successfully
+      loop: "{{ async_poll_results.results }}"
       loop_control:
         loop_var: "async_result_item"
-      register: async_poll_results
