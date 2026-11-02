@@ -22,7 +22,7 @@
       register: host_info
 
     - name: Get Lifecycle Environment
-      when: lifecycle_environment | default(false) | bool
+      when: lifecycle_prior | default(false) | bool
       redhat.satellite.lifecycle_environment:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
