@@ -39,7 +39,7 @@ controller_templates:
     credentials:
       - "{{ sat_prefix }}API"
     job_type: run
-    ask_variables_on_launch: true
+    ask_variables_on_launch: false
     extra_vars:
       emergency_content_view: "{{ sat_emergency_content_view }}"
     state: present
@@ -54,7 +54,7 @@ controller_templates:
     credentials:
       - "{{ sat_prefix }}API"
     job_type: run
-    ask_variables_on_launch: true
+    ask_variables_on_launch: false
     survey_enabled: true
     survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/emergency_publish.yml.j2', convert_data=False) | from_yaml }}"
     extra_vars:
@@ -69,11 +69,11 @@ controller_templates:
     organization: "{{ sat_aap_organization }}"
     project: "{{ sat_prefix }}Content Lifecycle"
     playbook: playbooks/filter_errata.yml
-    inventory: "{{ sat_prefix }}Control"
+    inventory: "{{ sat_prefix }}Clients"
     execution_environment: "{{ sat_ee_name }}"
     credentials: []
     job_type: run
-    ask_variables_on_launch: true
+    ask_variables_on_launch: false
     survey_enabled: true
     survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/filter_errata.yml.j2', convert_data=False) | from_yaml }}"
     state: present
@@ -89,12 +89,9 @@ controller_templates:
     credentials:
       - "{{ sat_prefix }}API"
     job_type: run
-    ask_variables_on_launch: true
+    ask_variables_on_launch: false
     survey_enabled: true
-    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/promote_content_views.yml.j2', convert_data=False) | from_yaml }}"
-    extra_vars:
-      content_view_queries:
-        - "composite = true"
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/promote_content_views.yml.j2', convert_data=False) | from_yaml }}"  
     state: present
 
   - name: "{{ sat_prefix }}Publish Content Views"
@@ -107,7 +104,7 @@ controller_templates:
     credentials:
       - "{{ sat_prefix }}API"
     job_type: run
-    ask_variables_on_launch: true
+    ask_variables_on_launch: false
     survey_enabled: true
     survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/publish_content_views.yml.j2', convert_data=False) | from_yaml }}"
     extra_vars:
@@ -128,11 +125,13 @@ controller_templates:
     credentials:
       - "{{ sat_prefix }}API"
     job_type: run
-    ask_variables_on_launch: true
-    ask_limit_on_launch: true
+    ask_variables_on_launch: false
+    ask_limit_on_launch: false
     forks: "{{ sat_update_forks }}"
     survey_enabled: true
     survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/report_errata.yml.j2', convert_data=False) | from_yaml }}"
+    extra_vars:
+      satellite_organization: "{{ sat_organization }}"
     state: present
 
   # --- Patching ------------------------------------------------------------
