@@ -1,0 +1,28 @@
+---
+name: Update Systems
+description: Choose how aggressively hosts are restarted after patching.
+spec:
+  - question_name: Restart policy
+    question_description: >-
+      least = reboot only if the kernel or a core library changed,
+      otherwise restart just the affected services. always = reboot every host unconditionally.
+    variable: reboot
+    type: multiplechoice
+    choices:
+      - least
+      - always
+    default: least
+    required: true
+
+  - question_name: Patch Group
+    question_description: Which patch group should be updated
+    type: multiplechoice
+    variable: patch_group
+    choices: {{ sat_patch_groups }}
+    required: false
+
+  - question_name: Host Group
+    question_description: Which host group should be updated
+    type: text
+    variable: host_group
+    required: false

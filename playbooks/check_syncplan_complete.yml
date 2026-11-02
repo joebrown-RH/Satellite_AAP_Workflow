@@ -1,6 +1,12 @@
 ---
 # Talks to the Satellite API over HTTPS; does not need to run ON the Satellite
 # server. Runs once against a single target to check if the Sync Plan is complete
+# Required Variables:
+#   satellite_username   = Username for Satellite access
+#   satellite_password   = Password for Satellite access
+#   satellite_server_url = URL for Satellite access
+# Optional Variables:
+#   satellite_validate_certs = Whether to validate the Satellite https certificate (default: true)
 - name: Wait for the Sync Plan is complete
   hosts: "{{ satellite_target | default('localhost') }}"
   connection: local

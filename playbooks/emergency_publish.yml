@@ -2,6 +2,15 @@
 # Talks to the Satellite API over HTTPS; does not need to run ON the Satellite
 # server. Runs once against a single target so the emergency content view is
 # built and published exactly once.
+# Required Variables:
+#   satellite_username             = Username for Satellite access
+#   satellite_password             = Password for Satellite access
+#   satellite_server_url           = URL for Satellite access
+#   satellite_organization         = Satellite Organization to operate within
+#   errata_ids                     = A list of Errata IDs to include. Can either be a list or newline delimetered
+#   emergency_content_view         = Content View name for emergency (out of cycle) patches
+# Optional Variables:
+#   satellite_validate_certs = Whether to validate the Satellite https certificate (default: true)
 - name: Publish Emergency Content View
   hosts: "{{ satellite_target | default('localhost') }}"
   connection: local
@@ -21,33 +30,6 @@
          else (errata_ids | split | select | list) }}
 
   tasks:
-    - name: Get Repositories
-      redhat.satellite.repository_info:
-        username: "{{ satellite_username | default(omit) }}"
-        password: "{{ satellite_password | default(omit) }}"
-        server_url: "{{ satellite_server_url | default(omit) }}"
-        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
-        organization: "{{ satellite_organization | default(omit) }}"
-
-        search: "{{ repository.query }}"
-        product: "{{ repository.product }}"
-      register: repo_list
-      loop: "{{ repositories }}"
-      loop_control:
-        loop_var: "repository"
-
-    - name: Ensure Emergency Content View exists
-      redhat.satellite.content_view:
-        username: "{{ satellite_username | default(omit) }}"
-        password: "{{ satellite_password | default(omit) }}"
-        server_url: "{{ satellite_server_url | default(omit) }}"
-        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
-        organization: "{{ satellite_organization | default(omit) }}"
-
-        name: "{{ emergency_content_view | default(omit) }}"
-        repositories: "{{ repo_list.results | json_query('[0].repositories[].{ name: name, product: product.name }') }}"
-        solve_dependencies: false
-
     - name: "Check if Errata Filter exists"
       redhat.satellite.content_view_filter_info:
         username: "{{ satellite_username | default(omit) }}"
@@ -123,42 +105,11 @@
         validate_certs: "{{ satellite_validate_certs | default(omit) }}"
         organization: "{{ satellite_organization | default(omit) }}"
 
-        search: "{{ composite_content_view_query }}"
+        search: "composite = true"
       register: composite_content_views
-      loop: "{{ composite_content_view_queries }}"
-      loop_control:
-        loop_var: "composite_content_view_query"
-
-    - name: Get current content of Compose Content Views
-      redhat.satellite.content_view_info:
-        username: "{{ satellite_username | default(omit) }}"
-        password: "{{ satellite_password | default(omit) }}"
-        server_url: "{{ satellite_server_url | default(omit) }}"
-        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
-        organization: "{{ satellite_organization | default(omit) }}"
-
-        name: "{{ composite_content_view }}"
-      register: content_view_content
-      loop: "{{ composite_content_views.results | json_query('[].content_views[].name') }}"
-      loop_control:
-        loop_var: "composite_content_view"
-
-    - name: Add Emergency Content View to Composite Content Views
-      when: emergency_content_view not in composite_content_view.content | map(attribute='content_view') | list
-      redhat.satellite.content_view:
-        username: "{{ satellite_username | default(omit) }}"
-        password: "{{ satellite_password | default(omit) }}"
-        server_url: "{{ satellite_server_url | default(omit) }}"
-        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
-        organization: "{{ satellite_organization | default(omit) }}"
-
-        name: "{{ composite_content_view.name }}"
-        components: "{{ composite_content_view.content + [{'content_view': emergency_content_view, 'latest': true}] }}"
-      loop: "{{ content_view_content.results | json_query('[].content_view.{ name: name, content: content_view_components[].{ content_view: content_view_version.content_view.name, latest: latest, version: content_view_version.version} }') }}"
-      loop_control:
-        loop_var: "composite_content_view"
 
     - name: Publish version of the Composite Content Views
+      when: 
       redhat.satellite.content_view_version:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"
@@ -167,9 +118,8 @@
         organization: "{{ satellite_organization | default(omit) }}"
 
         content_view: "{{ content_view }}"
-
       poll: 0
-      loop: "{{ composite_content_views.results | json_query('[].content_views[].name') }}"
+      loop: "{{ composite_content_views | json_query('content_views[?contains(@.components[].content_view.name, `' ~ emergency_content_view ~ '`)].name') }}"
       loop_control:
         loop_var: "content_view"
       async: 3600
@@ -189,7 +139,7 @@
       ansible.builtin.assert:
         that:
           - async_result is success
-        failed_msg: Not all Composite Content Views published successfully
-      loop: "{{ async_poll_results }}"
+        fail_msg: Not all Composite Content Views published successfully
+      loop: "{{ async_poll_results.results | json_query('[].{content_view: async_result_item.content_view, failed: failed}')}}"
       loop_control:
         loop_var: "async_result"
