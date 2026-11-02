@@ -7,6 +7,17 @@
   connection: local
   gather_facts: false
 
+  vars:
+    # An AAP survey textarea hands back one newline-delimited string, but a
+    # command-line run passes a real list. Accept either so the same playbook
+    # works from the controller and from a workstation.
+    #
+    # Splitting on any whitespace rather than on newlines specifically
+    cv_queries_list: >-
+      {{ content_view_queries
+         if (content_view_queries is sequence and content_view_queries is not string)
+         else (content_view_queries | from_yaml) }}
+
   tasks:
     - name: Get Lifecycle Environment
       redhat.satellite.lifecycle_environment:
@@ -33,7 +44,7 @@
 
         search: "{{ content_view_query }}"
       register: content_views
-      loop: "{{ content_view_queries }}"
+      loop: "{{ cv_queries_list }}"
       loop_control:
         loop_var: "content_view_query"
 
