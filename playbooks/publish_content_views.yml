@@ -46,19 +46,11 @@
       until: async_poll_results.finished
       retries: 3600
 
-    - name: debug
-      debug:
-        var: async_results.results
-
-    - name: debug2
-      debug:
-        var: async_poll_results
-
     - name: Ensure the publish succeeded
       ansible.builtin.assert:
         that:
           - async_result_item is success
-        failed_msg: Not all Content Views published successfully
+        fail_msg: Not all Content Views published successfully
       loop: "{{ async_poll_results.results }}"
       loop_control:
         loop_var: "async_result_item"
@@ -105,7 +97,7 @@
       ansible.builtin.assert:
         that:
           - async_result_item is success
-        failed_msg: Not all Compsite Content Views published successfully
+        fail_msg: Not all Compsite Content Views published successfully
       loop: "{{ async_poll_results.results }}"
       loop_control:
         loop_var: "async_result_item"
