@@ -5,7 +5,7 @@
 # docs/satellite/patching.md.
 - name: Update RHEL Systems
   hosts: "{{ host_query | default('foreman_' ~ (host_group | lower | replace('/', '_') | replace('-', '_')) ~':&foreman_hostcollection_patch_group_' ~ patch_group) }}"
-  gather_facts: false
+  gather_facts: true
 
   tasks:
     - name: Update all packages
