@@ -47,6 +47,7 @@
         loop_var: rule
 
     - name: Publish version of the Emergency Content Views
+      when: errata_rules is not failed
       redhat.satellite.content_view_version:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"

@@ -109,7 +109,6 @@
       register: composite_content_views
 
     - name: Publish version of the Composite Content Views
-      when: 
       redhat.satellite.content_view_version:
         username: "{{ satellite_username | default(omit) }}"
         password: "{{ satellite_password | default(omit) }}"

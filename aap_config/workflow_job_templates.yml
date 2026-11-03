@@ -217,6 +217,10 @@ _sat_process_errata_nodes:
       type: workflow_job_template
       organization:
         name: "{{ sat_aap_organization }}"
+    extra_data:
+      host_query: all
+      host_group: ""
+      lifecycle_environment: Library
 
 _sat_drop_approval: "{{ not (sat_require_patch_approval | bool) }}"
 
