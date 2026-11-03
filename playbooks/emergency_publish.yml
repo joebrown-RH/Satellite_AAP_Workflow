@@ -30,6 +30,11 @@
          else (errata_ids | split | select | list) }}
 
   tasks:
+    - name: Ensure there are at least 1 updates available
+      when: (errata_id_list | length) == 0
+      run_once: true
+      ansible.builtin.meta: end_play
+
     - name: "Check if Errata Filter exists"
       redhat.satellite.content_view_filter_info:
         username: "{{ satellite_username | default(omit) }}"
