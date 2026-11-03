@@ -45,3 +45,13 @@
       loop: "{{ errata_rules.content_view_filter_rules }}"
       loop_control:
         loop_var: rule
+
+    - name: Publish version of the Emergency Content Views
+      redhat.satellite.content_view_version:
+        username: "{{ satellite_username | default(omit) }}"
+        password: "{{ satellite_password | default(omit) }}"
+        server_url: "{{ satellite_server_url | default(omit) }}"
+        validate_certs: "{{ satellite_validate_certs | default(omit) }}"
+        organization: "{{ satellite_organization | default(omit) }}"
+
+        content_view: "{{ emergency_content_view }}"
