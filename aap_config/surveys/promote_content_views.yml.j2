@@ -9,7 +9,7 @@ spec:
       only composite content views need promoting.
     variable: lifecycle_environment
     type: multiplechoice
-    choices: {{ sat_lifecycle_environments | json_query('[].name') }}
+    choices: {{ ['Library'] + (sat_lifecycle_environments | json_query('[].name')) }}
     default: {{ sat_lifecycle_environments | json_query('[].name') | first | quote }}
     required: true
 

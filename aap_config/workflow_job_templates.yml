@@ -36,7 +36,16 @@ _sat_update_node:
   unified_job_template:
     organization:
       name: Default
-    name: "{{ sat_prefix }}Update Systems"
+    name: "{{ sat_prefix }}Update Systems Workflow"
+    type: workflow_job_template
+
+# Call the Patch Cycle Step workflow
+_sat_patch_step_node:
+  identifier: update
+  unified_job_template:
+    organization:
+      name: Default
+    name: "{{ sat_prefix }}Patch Cycle Step Workflow"
     type: workflow_job_template
 
 # Install all installable updates
@@ -48,10 +57,6 @@ _sat_update_clients_node:
     type: job_template
     organization:
       name: "{{ sat_aap_organization }}"
-  # always_nodes: the closing report runs whether or not patching succeeded,
-  # so an operator always sees what is still outstanding.
-  always_nodes:
-    - errata_after
 
 # --- Node lists per workflow ------------------------------------------------
 
@@ -109,9 +114,9 @@ _sat_update_systems_nodes:
       organization:
         name: "{{ sat_aap_organization }}"
     extra_data:
-      lifecycle_prior: true
+      lifecycle_prior: "true"
     success_nodes:
-      - "patch-"
+      - "update-{{ sat_patch_groups | first }}"
   
   # AFTER report. Reports against the environment the hosts are now on, so a
   # clean run comes back empty.
@@ -122,35 +127,28 @@ _sat_update_systems_nodes:
       organization:
         name: "{{ sat_aap_organization }}"
     extra_data:
-      lifecycle_prior: false
+      lifecycle_prior: "false"
 
 _sat_update_systems_nodes_all: >-
-  {{ _sat_update_systems_nodes + 
-    [
-      _sat_update_clients_node | combine({
-        'extra_vars': {
-          'patch_group': sat_patch_groups[idx]
-        }
-      })
-      |
-      combine(
-        (
-          idx < (sat_patch_groups | length - 1)
-        )
-        | ternary(
-            {
-              'success_nodes': ['update-' ~ sat_patch_groups[idx]],
-              'failure_nodes': ['errata_after']
-            },
-            {
-              'always_nodes': ['errata_after']
-            }
-          )
-      )
-      for idx in range(sat_patch_groups | length)
-    ]
-  
-  }}
+  {%- set nodes = _sat_update_systems_nodes | list -%}
+  {%- for idx in range(sat_patch_groups | length) -%}
+  {%- set node = _sat_update_clients_node | combine({
+    'identifier': 'update-' ~ sat_patch_groups[idx],
+    'extra_vars': {
+      'patch_group': sat_patch_groups[idx]
+    }
+  }) -%}
+  {%- if idx < (sat_patch_groups | length - 1) -%}
+  {%- set node = node | combine({
+    'success_nodes': ['update-' ~ sat_patch_groups[idx + 1]],
+    'failure_nodes': ['errata_after']
+  }) -%}
+  {%- else -%}
+  {%- set node = node | combine({'always_nodes': ['errata_after']}) -%}
+  {%- endif -%}
+  {%- set _ = nodes.append(node) -%}
+  {%- endfor -%}
+  {{ nodes }}
 
 _sat_emergency_nodes:
   - identifier: emergency_publish
@@ -159,53 +157,66 @@ _sat_emergency_nodes:
       type: job_template
       organization:
         name: "{{ sat_aap_organization }}"
-    success_nodes: "{{ ['approval'] if sat_require_patch_approval | bool else ['promote-' ~ (sat_lifecycle_environments | first).name] }}"
-  - identifier: approval
-    approval_node:
-      name: "{{ sat_prefix }}Approve emergency patching"
-      description: "Emergency content is published. Approve to begin patching."
-      timeout: "{{ sat_approval_timeout }}"
-    success_nodes:
+    success_nodes: 
       - "promote-{{ (sat_lifecycle_environments | first).name }}"
 
 _sat_emergency_nodes_all: >-
-  {{ _sat_emergency_nodes + 
-    [
-      _sat_promote_node | combine({
-        'identifier': 'promote-' ~ sat_lifecycle_environments[idx].name,
-        'extra_vars': {
-          'lifecycle_environment': sat_lifecycle_environments[idx].name
-        }
-      })
-      |
-      combine(
-        ternary(
-          {'success_nodes': ['update-' ~ sat_lifecycle_environments[idx].name]},
-          {}
-        )
-      )
-      for idx in range(sat_lifecycle_environments | length)
-    ] +
-    [
-      _sat_update_node | combine({
-        'identifier': 'update-' ~ sat_lifecycle_environments[idx].name,
-        'extra_vars': {
-          'lifecycle_environment': sat_lifecycle_environments[idx].name
-        }
-      })
-      |
-      combine(
-        (
-          idx < (sat_lifecycle_environments | length - 1)
-        )
-        | ternary(
-            {'success_nodes': ['promote-' ~ sat_lifecycle_environments[idx + 1].name]},
-            {}
-          )
-      )
-      for idx in range(sat_lifecycle_environments | length)
-    ]
-  }}
+  {%- set nodes = _sat_emergency_nodes | list -%}
+  {%- for idx in range(sat_lifecycle_environments | length) -%}
+  {%- set node = _sat_patch_step_node | combine({
+    'identifier': 'promote-' ~ sat_lifecycle_environments[idx].name,
+    'extra_vars': {
+      'lifecycle_environment': sat_lifecycle_environments[idx].name
+    }
+  }) -%}
+  {%- if idx < (sat_lifecycle_environments | length - 1) -%}
+  {%- set node = node | combine({
+    'success_nodes': ['promote-' ~ sat_lifecycle_environments[idx + 1].name]
+  }) -%}
+  {%- endif -%}
+  {%- set _ = nodes.append(node) -%}
+  {%- endfor -%}
+  {{ nodes }}
+
+_sat_process_errata_nodes:
+  - identifier: "Check Sync is Complete"
+    unified_job_template:
+      name: "{{ sat_prefix }}Ensure Sync Plan Complete"
+      type: job_template
+      organization:
+        name: "{{ sat_aap_organization }}"
+    success_nodes:
+      - "Get Available Errata"
+  - identifier: "Get Available Errata"
+    unified_job_template:
+      name: "{{ sat_prefix }}Report Installable Errata"
+      type: job_template
+      organization:
+        name: "{{ sat_aap_organization }}"
+    extra_data:
+      host_query: all
+      host_group: ""
+      lifecycle_environment: Library
+      lifecycle_prior: "false"
+    success_nodes:
+      - "Filter Available Errata"
+  - identifier: "Filter Available Errata"
+    unified_job_template:
+      name: "{{ sat_prefix }}Filter Available Errata"
+      type: job_template
+      organization:
+        name: "{{ sat_aap_organization }}"
+    extra_data:
+      host_query: all
+      host_group: ""
+    success_nodes:
+      - "Publish Emergency CV"
+  - identifier: "Publish Emergency CV"
+    unified_job_template:
+      name: "{{ sat_prefix }}Emergency Publish Workflow"
+      type: workflow_job_template
+      organization:
+        name: "{{ sat_aap_organization }}"
 
 _sat_drop_approval: "{{ not (sat_require_patch_approval | bool) }}"
 
@@ -216,27 +227,27 @@ controller_workflows:
   # Publishing: clean the emergency content view, then publish everything.
   # Clearing first is what makes the subsequent publish produce clean
   # composite versions.
-  - name: "{{ sat_prefix }}Publishing"
+  - name: "{{ sat_prefix }}Publish Content Views Workflow"
     description: "Reset the emergency content view, then publish all content views"
     organization: "{{ sat_aap_organization }}"
     inventory: "{{ sat_prefix }}Control"
-    ask_variables_on_launch: true
+    ask_variables_on_launch: false
     survey_enabled: true
-    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/publish_content_views.json.j2', convert_data=False) | from_json }}"
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/publish_content_views.yml.j2', convert_data=False) | from_yaml }}"
     notification_templates_error:
       - "{{ sat_prefix }}Workflow Failure"
     state: present
     simplified_workflow_nodes: "{{ _sat_publishing_nodes }}"
 
   # Patch Cycle Step: promote -> [approval] -> [Update Systems]
-  - name: "{{ sat_prefix }}Patch Cycle Step"
+  - name: "{{ sat_prefix }}Patch Cycle Step Workflow"
     description: "Promote content to a lifecycle environment, then patch the hosts in it"
     organization: "{{ sat_aap_organization }}"
     inventory: "{{ sat_prefix }}Control"
-    ask_variables_on_launch: true
-    ask_limit_on_launch: true
+    ask_variables_on_launch: false
+    ask_limit_on_launch: false
     survey_enabled: true
-    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/patch_cycle_step_workflow.json.j2', convert_data=False) | from_json }}"
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/patch_cycle_step_workflow.yml.j2', convert_data=False) | from_yaml }}"
     notification_templates_error:
       - "{{ sat_prefix }}Workflow Failure"
     state: present
@@ -245,12 +256,13 @@ controller_workflows:
          if _sat_drop_approval | bool else _sat_patch_cycle_nodes }}
 
   # Update Systems: report -> patch (loop through each patch group) -> report
-  - name: "{{ sat_prefix }}Update Systems"
+  - name: "{{ sat_prefix }}Update Systems Workflow"
     description: "Installs all installable updates"
+    organization: "{{ sat_aap_organization }}"
     inventory: "{{ sat_prefix }}Clients"
-    ask_variables_on_launch: true
+    ask_variables_on_launch: false
     survey_enabled: true
-    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/update_systems_workflow.json.j2', convert_data=False) | from_json }}"
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/update_systems_workflow.yml.j2', convert_data=False) | from_yaml }}"
     notification_templates_error:
       - "{{ sat_prefix }}Workflow Failure"
     state: present
@@ -259,17 +271,27 @@ controller_workflows:
 
 
   # Emergency Publish: publish -> [approval] -> [Update Systems]
-  - name: "{{ sat_prefix }}Emergency Publish"
+  - name: "{{ sat_prefix }}Emergency Publish Workflow"
     description: "Push specific errata out ahead of the normal patch window and apply them"
     organization: "{{ sat_aap_organization }}"
     inventory: "{{ sat_prefix }}Clients"
-    ask_variables_on_launch: true
-    ask_limit_on_launch: true
+    ask_variables_on_launch: false
+    ask_limit_on_launch: false
     survey_enabled: true
-    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/emergency_workflow.json.j2', convert_data=False) | from_json }}"
+    survey_spec: "{{ lookup('template', sat_config_dir ~ '/surveys/emergency_workflow.yml.j2', convert_data=False) | from_yaml }}"
     notification_templates_error:
       - "{{ sat_prefix }}Workflow Failure"
     state: present
     simplified_workflow_nodes: >-
       {{ _sat_emergency_nodes_all | rejectattr('identifier', 'equalto', 'approval') | list
          if _sat_drop_approval | bool else _sat_emergency_nodes_all }}
+
+  # Process Errata: 
+  - name: "{{ sat_prefix }}Process Errata Workflow"
+    description: "Processes all errata that was recently synced to the Satellite server for any that should be immediately installed."
+    organization: "{{ sat_aap_organization }}"
+    inventory: "{{ sat_prefix }}Clients"
+    ask_variables_on_launch: false
+    ask_limit_on_launch: false
+    state: present
+    simplified_workflow_nodes: "{{ _sat_process_errata_nodes }}"

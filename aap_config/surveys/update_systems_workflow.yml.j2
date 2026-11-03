@@ -1,6 +1,7 @@
 ---
 name: Update Systems
-description: Patch the selected hosts. Use the Patch Group and Host Group fields to
+description: >-
+  Patch the selected hosts. Use the Patch Group and Host Group fields to
   target a host group or patch group.
 spec:
   - question_name: Patch Group
@@ -8,7 +9,7 @@ spec:
     question_description: Which patch group to update
     variable: patch_group
     required: true
-    default: '1'
+    default: {{ sat_patch_groups | first | string | to_json }}
     choices: {{ sat_patch_groups }}
 
   - question_name: Host Group
@@ -16,7 +17,7 @@ spec:
     question_description: Which host group to update
     variable: host_group
     required: true
-    default: None
+    default: ""
 
   - question_name: Restart policy
     question_description: least = reboot only if the kernel or a core library changed,

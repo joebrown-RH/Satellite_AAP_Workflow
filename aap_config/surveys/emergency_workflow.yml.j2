@@ -15,13 +15,19 @@ spec:
 
   - question_name: Lifecycle environment
     question_description: >-
-      The environment the errata reports are scoped to. The emergency
-      content view is attached directly to the composites, so no promotion happens here.
+      The environment the errata reports are scoped to.
     variable: lifecycle_environment
     type: multiplechoice
-    choices: {{ sat_lifecycle_environments | json_query('[].name') }}
-    default: {{ sat_lifecycle_environments | json_query('[].name') | first | quote }}
+    choices: {{ ['Library'] + (sat_lifecycle_environments | json_query('[].name')) }}
+    default: {{ sat_lifecycle_environments | json_query('[].name') | first | to_json }}
     required: true
+
+  - question_name: Host Group
+    type: text
+    question_description: Which host group to update
+    variable: host_group
+    required: true
+    default: ""
 
   - question_name: Restart policy
     question_description: >-

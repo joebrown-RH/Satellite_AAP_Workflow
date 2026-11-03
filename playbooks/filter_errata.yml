@@ -34,6 +34,6 @@
       run_once: true
       ansible.builtin.assert:
         that:
-          - (errata_id_list | length) == 0
+          - (errata_ids | length) == 0
         fail_msg: "There are no updates to install."
         success_msg: "There are updates to install."

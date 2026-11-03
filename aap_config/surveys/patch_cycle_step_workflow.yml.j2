@@ -10,8 +10,8 @@ spec:
       this one, and the errata reports are scoped to it.
     variable: lifecycle_environment
     type: multiplechoice
-    choices: {{ sat_lifecycle_environments | json_query('[].name') }}
-    default: {{ sat_lifecycle_environments | json_query('[].name') | first | quote }}
+    choices: {{ ['Library'] + (sat_lifecycle_environments | json_query('[].name')) }}
+    default: {{ sat_lifecycle_environments | json_query('[].name') | first | to_json }}
     required: true
 
   - question_name: Patch Group
@@ -19,7 +19,7 @@ spec:
     question_description: Which patch group to update
     variable: patch_group
     required: true
-    default: {{ sat_patch_groups | first | quote }}
+    default: {{ sat_patch_groups | first | string | to_json }}
     choices: {{ sat_patch_groups }}
 
   - question_name: Host Group
@@ -27,7 +27,7 @@ spec:
     question_description: Which host group to update
     variable: host_group
     required: true
-    default: None
+    default: ""
 
   - question_name: Restart policy
     question_description: >-
