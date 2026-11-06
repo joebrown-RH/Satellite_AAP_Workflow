@@ -16,7 +16,7 @@
 sat_prefix: "Satellite - "
 
 # AAP organization that will own everything in this bundle.
-sat_aap_organization: "Satellite Automation"
+sat_aap_organization: "Default"
 
 # --- Satellite connection ---------------------------------------------------
 # The URL and cert policy are non-secret, so they live here. Username and
@@ -25,7 +25,7 @@ sat_url: "https://satellite.rh.local"
 sat_validate_certs: false
 
 # Satellite organization that owns the content views.
-sat_organization: "Demo"
+sat_organization: "Default Organization"
 
 # --- Content view model -----------------------------------------------------
 # Matches the building-block design in docs/satellite/content_views.md.
@@ -33,10 +33,19 @@ sat_emergency_content_view: "cv_Emergency"
 
 # Lifecycle path, in promotion order. Drives the promote/report surveys.
 sat_lifecycle_environments:
-  - Dev
-  - Test
-  - QA
-  - Prod
+  - prior: Library
+    name: Dev
+  - prior: Dev
+    name: Test
+  - prior: Test
+    name: QA
+  - prior: QA
+    name: Prod
+
+sat_patch_groups:
+  - "1"
+  - "2"
+  - "3"
 
 # Search queries identifying the composite content views that carry the
 # emergency content view. Excludes SAP per the worked example in the docs.
@@ -49,7 +58,7 @@ sat_emergency_repositories:
     query: 'name ~ "*AppStream RPMs*" or name ~ "*BaseOS RPMs*"'
 
 # --- Source control ---------------------------------------------------------
-sat_project_url: "https://github.com/example/Satellite_AAP_Workflow.git"
+sat_project_url: "https://github.com/joebrown-RH/Satellite_AAP_Workflow.git"
 sat_project_branch: "main"
 # Set to a credential name if the repo is private, otherwise leave null.
 sat_project_credential: null

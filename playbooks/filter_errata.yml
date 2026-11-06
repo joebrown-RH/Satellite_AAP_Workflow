@@ -1,0 +1,39 @@
+---
+# Errata are per-host, so this play DOES fan out across the client inventory -
+# but every task is a local process, so it runs locally in the execution
+# environment and never opens an SSH session to the clients themselves.
+# Use the same inventory and `limit` as update_systems.yml so the applied
+# errata are for those clients.
+# Required Variables:
+#   satellite_username             = Username for Satellite access
+#   satellite_password             = Password for Satellite access
+#   satellite_server_url           = URL for Satellite access
+#   satellite_organization         = Satellite Organization to operate within
+#   available_errata               = A hash of hashes of a list of erratas. The top level hash should have an id of the inventoty hostname
+#   emergency_content_view         = Content View name for emergency (out of cycle) patches
+# Optional Variables:
+#   satellite_validate_certs = Whether to validate the Satellite https certificate (default: true)
+- name: Check Errata
+  hosts: "{{ host_query | default('foreman_' ~ (host_group | lower | replace('/', '_') | replace('-', '_'))) }}"
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Find Errata that matches criteria
+      ansible.builtin.set_stats:
+        data:
+          errata_ids: "{{ available_errata[host | default(inventory_hostname)] | json_query(errata_filter ~ '.errata_id') }}"
+        per_host: false
+        aggregate: true
+
+    - name: Print Errata IDs to be installed
+      ansible.builtin.debug:
+        msg: "{{ available_errata[host | default(inventory_hostname)] | json_query(errata_filter ~ '.errata_id') }}"
+
+    - name: Ensure there are at least 1 updates available
+      run_once: true
+      ansible.builtin.assert:
+        that:
+          - (errata_ids | length) > 0
+        fail_msg: "There are no updates to install."
+        success_msg: "There are updates to install."

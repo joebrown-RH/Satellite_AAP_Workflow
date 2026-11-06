@@ -11,6 +11,8 @@
 #   export CONTROLLER_PASSWORD='...'
 #   export SATELLITE_USERNAME=admin
 #   export SATELLITE_PASSWORD='...'
+#    Depending on the collection and AAP versions, you may also need:
+#   export CONTROLLER_OPTIONAL_API_URLPATTERN_PREFIX=/api
 #   ansible-playbook playbooks/configure_aap.yml
 #
 # Add --check to preview without writing anything.

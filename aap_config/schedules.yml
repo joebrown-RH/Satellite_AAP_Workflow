@@ -11,7 +11,7 @@ controller_schedules:
   # Publish new content view versions every Saturday at 02:00.
   - name: "{{ sat_prefix }}Weekly Publish"
     description: "Publish new content view versions ahead of the Dev promotion"
-    unified_job_template: "{{ sat_prefix }}Publishing"
+    unified_job_template: "{{ sat_prefix }}Publish Content Views Workflow"
     organization: "{{ sat_aap_organization }}"
     rrule: "DTSTART;TZID=Etc/UTC:20260103T020000 RRULE:FREQ=WEEKLY;BYDAY=SA"
     enabled: "{{ sat_manage_schedules }}"
@@ -19,7 +19,7 @@ controller_schedules:
 
   # Dev patches the following Monday, then each environment a week later.
   - name: "{{ sat_prefix }}Weekly Patch - Dev"
-    unified_job_template: "{{ sat_prefix }}Update Systems"
+    unified_job_template: "{{ sat_prefix }}Patch Cycle Step Workflow"
     organization: "{{ sat_aap_organization }}"
     rrule: "DTSTART;TZID=Etc/UTC:20260105T030000 RRULE:FREQ=WEEKLY;BYDAY=MO"
     extra_data:
@@ -29,11 +29,21 @@ controller_schedules:
     state: "{{ 'present' if sat_manage_schedules else 'absent' }}"
 
   - name: "{{ sat_prefix }}Weekly Patch - Test"
-    unified_job_template: "{{ sat_prefix }}Update Systems"
+    unified_job_template: "{{ sat_prefix }}Patch Cycle Step Workflow"
     organization: "{{ sat_aap_organization }}"
     rrule: "DTSTART;TZID=Etc/UTC:20260107T030000 RRULE:FREQ=WEEKLY;BYDAY=WE"
     extra_data:
       lifecycle_environment: Test
+      reboot: least
+    enabled: "{{ sat_manage_schedules }}"
+    state: "{{ 'present' if sat_manage_schedules else 'absent' }}"
+
+  - name: "{{ sat_prefix }}Weekly Patch - QA"
+    unified_job_template: "{{ sat_prefix }}Patch Cycle Step Workflow"
+    organization: "{{ sat_aap_organization }}"
+    rrule: "DTSTART;TZID=Etc/UTC:20260107T030000 RRULE:FREQ=WEEKLY;BYDAY=TH"
+    extra_data:
+      lifecycle_environment: QA
       reboot: least
     enabled: "{{ sat_manage_schedules }}"
     state: "{{ 'present' if sat_manage_schedules else 'absent' }}"

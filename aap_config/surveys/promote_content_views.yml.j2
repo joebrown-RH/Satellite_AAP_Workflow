@@ -1,0 +1,23 @@
+---
+name: Promote Content Views
+description: Choose the lifecycle environment to promote into.
+spec:
+  - question_name: Target lifecycle environment
+    question_description: >-
+      Content is promoted from this environment's prior step into
+      this one. Following the building-block model in docs/satellite/content_views.md,
+      only composite content views need promoting.
+    variable: lifecycle_environment
+    type: multiplechoice
+    choices: {{ sat_lifecycle_environments | json_query('[].name') }}
+    default: {{ sat_lifecycle_environments | json_query('[].name') | first | quote }}
+    required: true
+
+  - question_name: Content View Queries
+    question_description: |-
+      Queries to find the Content Views to promote.
+      This should be defined as a yaml array.
+    variable: content_view_queries
+    type: textarea
+    required: true
+    default: '- "composite = true"'

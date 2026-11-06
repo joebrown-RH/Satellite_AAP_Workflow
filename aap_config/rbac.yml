@@ -21,15 +21,15 @@ controller_roles:
   # "Update Systems" on its own skips the promote and approval steps.
   - team: "{{ sat_prefix }}Operators"
     workflows:
-      - "{{ sat_prefix }}Publishing"
-      - "{{ sat_prefix }}Update Systems"
-      - "{{ sat_prefix }}Emergency Publish"
+      - "{{ sat_prefix }}Publish Content Views Workflow"
+      - "{{ sat_prefix }}Patch Cycle Step Workflow"
+      - "{{ sat_prefix }}Emergency Publish Workflow"
     role: execute
 
   - team: "{{ sat_prefix }}Operators"
     workflows:
-      - "{{ sat_prefix }}Update Systems"
-      - "{{ sat_prefix }}Emergency Publish"
+      - "{{ sat_prefix }}Update Systems Workflow"
+      - "{{ sat_prefix }}Emergency Publish Workflow"
     role: approval
 
   - team: "{{ sat_prefix }}Operators"

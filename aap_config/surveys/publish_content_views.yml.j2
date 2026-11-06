@@ -1,0 +1,15 @@
+---
+name: Publish Content Views
+description: Choose which content views to leave untouched during this publish.
+spec:
+  - question_name: Content views to exclude
+    question_description: >-
+      These content views will NOT get a new version. The emergency
+      content view is excluded by default because it is published on its own schedule.
+      A multiselect is used deliberately - AAP returns it as a list, which is what the
+      playbook's reject filter needs.
+    variable: exclude_content_views
+    type: multiselect
+    choices: {{ ([sat_emergency_content_view] + (sat_additional_excludable_content_views | default([]))) }}
+    default: {{ sat_emergency_content_view | quote }}
+    required: false

@@ -1,0 +1,24 @@
+---
+name: Filter Installable Errata
+description: Scope the errata report.
+spec:
+  - question_name: Errata Filter
+    question_description: >-
+      JSON Query to determine which errata should be immediately
+      processed
+    variable: errata_filter
+    type: text
+    default: "[?severity==`Critical`]"
+    required: true
+
+  - question_name: Host Group
+    question_description: Which host group should the report include
+    type: text
+    variable: host_group
+    required: false
+
+  - question_name: Host Query
+    question_description: Define a custom limit instead of the built-in filtering that utilizes Host Group and Patch Group
+    type: text
+    variable: host_query
+    required: false

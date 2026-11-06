@@ -19,6 +19,8 @@ controller_notifications:
       port: "{{ sat_alert_email_port }}"
       use_tls: "{{ sat_alert_email_use_tls }}"
       use_ssl: false
+      username: ""
+      password: ""
       sender: "{{ sat_alert_email_sender }}"
       recipients: "{{ sat_alert_email_recipients }}"
       timeout: 30
